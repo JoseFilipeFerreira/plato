@@ -1,53 +1,63 @@
-# Plato – Homer Dashboard Generator
+# 🏺 Plato – Homer Dashboard Generator
 
 Reads labels from docker, crossreferences with nginx to get external url and
 generates on runtime the Homer Dashboard
 
 ## 🌟 Mandatory Environment Variables
 
-- `CATEGORY_ICONS` – Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt`
-- `HOSTNAME` – The hostname of the container or service.
+| Variable        | Description                                                                                  |
+|-----------------|----------------------------------------------------------------------------------------------|
+| CATEGORY_ICONS  | Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt` |
+| HOSTNAME        | The hostname of the container or service.                                                   |
 
 ---
 
+
 ## ⚙️ Optional Environment Variables (with defaults)
 
-- `TITLE` – "Demo dashboard" – Main dashboard title
-- `SUBTITLE` – "Homer" – Dashboard subtitle
-- `LOGO` – "logo.png" – Logo image path or URL
-- `COLUMNS` – "auto" – Number of columns in the dashboard
-- `HEADER` – "true" – Show header
-- `FOOTER` – "false" – Show footer
+| Variable                          | Default         |
+|-----------------------------------|-----------------|
+| TITLE                             | Demo dashboard  |
+| SUBTITLE                          | Homer           |
+| LOGO                              | logo.png        |
+| COLUMNS                           | auto            |
+| HEADER                            | true            |
+| FOOTER                            | false           |
 
-**Light Theme Colors**
+### Light Theme Colors
 
-- `COLORS_LIGHT_HIGHLIGHT-PRIMARY` – `#3367d6`
-- `COLORS_LIGHT_HIGHLIGHT-SECONDARY` – `#4285f4`
-- `COLORS_LIGHT_HIGHLIGHT-HOVER` – `#5a95f5`
-- `COLORS_LIGHT_BACKGROUND` – `#f5f5f5`
-- `COLORS_LIGHT_CARD-BACKGROUND` – `#ffffff`
-- `COLORS_LIGHT_TEXT` – `#363636`
-- `COLORS_LIGHT_TEXT-HEADER` – `#ffffff`
-- `COLORS_LIGHT_TEXT-TITLE` – `#303030`
-- `COLORS_LIGHT_TEXT-SUBTITLE` – `#424242`
-- `COLORS_LIGHT_CARD-SHADOW` – `rgba(0, 0, 0, 0.1)`
-- `COLORS_LIGHT_LINK` – `#3273dc`
-- `COLORS_LIGHT_LINK-HOVER` – `#363636`
+| Variable                          | Default         |
+|-----------------------------------|-----------------|
+| COLORS_LIGHT_HIGHLIGHT-PRIMARY    | #3367d6         |
+| COLORS_LIGHT_HIGHLIGHT-SECONDARY  | #4285f4         |
+| COLORS_LIGHT_HIGHLIGHT-HOVER      | #5a95f5         |
+| COLORS_LIGHT_BACKGROUND           | #f5f5f5         |
+| COLORS_LIGHT_CARD-BACKGROUND      | #ffffff         |
+| COLORS_LIGHT_TEXT                 | #363636         |
+| COLORS_LIGHT_TEXT-HEADER          | #ffffff         |
+| COLORS_LIGHT_TEXT-TITLE           | #303030         |
+| COLORS_LIGHT_TEXT-SUBTITLE        | #424242         |
+| COLORS_LIGHT_CARD-SHADOW          | rgba(0, 0, 0, 0.1) |
+| COLORS_LIGHT_LINK                 | #3273dc         |
+| COLORS_LIGHT_LINK-HOVER           | #363636         |
 
-**Dark Theme Colors**
+### Dark Theme Colors
 
-- `COLORS_DARK_HIGHLIGHT-PRIMARY` – `#3367d6`
-- `COLORS_DARK_HIGHLIGHT-SECONDARY` – `#4285f4`
-- `COLORS_DARK_HIGHLIGHT-HOVER` – `#5a95f5`
-- `COLORS_DARK_BACKGROUND` – `#131313`
-- `COLORS_DARK_CARD-BACKGROUND` – `#2b2b2b`
-- `COLORS_DARK_TEXT` – `#eaeaea`
-- `COLORS_DARK_TEXT-HEADER` – `#ffffff`
-- `COLORS_DARK_TEXT-TITLE` – `#fafafa`
-- `COLORS_DARK_TEXT-SUBTITLE` – `#f5f5f5`
-- `COLORS_DARK_CARD-SHADOW` – `rgba(0, 0, 0, 0.4)`
-- `COLORS_DARK_LINK` – `#3273dc`
-- `COLORS_DARK_LINK-HOVER` – `#ffdd57`
+| Variable                          | Default           |
+|----------------------------------|-----------------|
+| COLORS_DARK_HIGHLIGHT-PRIMARY     | #3367d6         |
+| COLORS_DARK_HIGHLIGHT-SECONDARY   | #4285f4         |
+| COLORS_DARK_HIGHLIGHT-HOVER       | #5a95f5         |
+| COLORS_DARK_BACKGROUND            | #131313         |
+| COLORS_DARK_CARD-BACKGROUND       | #2b2b2b         |
+| COLORS_DARK_TEXT                  | #eaeaea         |
+| COLORS_DARK_TEXT-HEADER           | #ffffff         |
+| COLORS_DARK_TEXT-TITLE            | #fafafa         |
+| COLORS_DARK_TEXT-SUBTITLE         | #f5f5f5         |
+| COLORS_DARK_CARD-SHADOW           | rgba(0, 0, 0, 0.4) |
+| COLORS_DARK_LINK                  | #3273dc         |
+| COLORS_DARK_LINK-HOVER            | #ffdd57         |
+
 
 ---
 
