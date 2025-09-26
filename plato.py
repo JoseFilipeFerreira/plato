@@ -20,7 +20,7 @@ if not HOSTNAME:
 # Create base config from env
 configuration = {
     'title':    os.getenv("TITLE", "Demo dashboard"),
-    'subtitle': os.getenv("SUBTITLE", "Homer"),
+    'subtitle': os.getenv("SUBTITLE", "Plato"),
     'logo':     os.getenv("LOGO", "logo.png"),
     'columns':  os.getenv("COLUMNS", "auto"),
     'header':   os.getenv("HEADER", "true"),
@@ -122,14 +122,14 @@ for container in client.containers.list():
 
     labels = container.labels
 
-    category = labels.get("com.homer.category")
+    category = labels.get("com.plato.category")
 
     if not category:
         continue
 
-    name     = labels.get("com.homer.name", container.name.title())
-    url      = labels.get("com.homer.url")
-    ui_port  = labels.get("com.homer.ui_port")
+    name     = labels.get("com.plato.name", container.name.title())
+    url      = labels.get("com.plato.url")
+    ui_port  = labels.get("com.plato.ui_port")
 
     if not url:
         if not ui_port:
@@ -141,10 +141,10 @@ for container in client.containers.list():
                         unique_ports.add(mapping['HostPort'])
 
             if len(unique_ports) == 0:
-                print(f"No port found for {name}\nDisanbiguation needed with com.homer.ui_port")
+                print(f"No port found for {name}\nDisanbiguation needed with com.plato.ui_port")
                 exit()
             if len(unique_ports) > 1:
-                print(f"More than one port found for {name}\nDisanbiguation needed with com.homer.ui_port")
+                print(f"More than one port found for {name}\nDisanbiguation needed with com.plato.ui_port")
                 exit()
 
             ui_port = next(iter(unique_ports))
@@ -158,16 +158,16 @@ for container in client.containers.list():
         print(f"Could not create URL for {name}")
         exit()
 
-    logo       = labels.get("com.homer.logo")
-    subtitle   = labels.get("com.homer.subtitle")
-    tag        = labels.get("com.homer.tag")
-    tagstyle   = labels.get("com.homer.tagstyle")
-    keywords   = labels.get("com.homer.keywords")
-    importance = labels.get("com.homer.importance",0)
+    logo       = labels.get("com.plato.logo")
+    subtitle   = labels.get("com.plato.subtitle")
+    tag        = labels.get("com.plato.tag")
+    tagstyle   = labels.get("com.plato.tagstyle")
+    keywords   = labels.get("com.plato.keywords")
+    importance = labels.get("com.plato.importance",0)
 
     result = {"name": name, "url": url[0], "importance": importance}
 
-    icon     = labels.get("com.homer.icon")
+    icon     = labels.get("com.plato.icon")
     if icon:
         result['icon'] = icon
     elif logo:

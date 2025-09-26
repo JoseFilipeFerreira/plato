@@ -3,6 +3,33 @@
 Reads labels from docker, crossreferences with nginx to get external url and
 generates on runtime the Homer Dashboard
 
+## 🏷 Docker Labels
+
+The claim to fame of this software is simple. The only label you have to add to
+each docker container you want to show on the page is `com.plato.category`. Every other tag is optional.
+
+If the container only has one exposed port it will be considered the UI port. If
+not, you have to disambiguate using `com.plato.ui_port`. Then this port is used
+to search the nginx config to see if there is any external URL.
+
+Full list of labels is as follow:
+
+```yaml
+labels:
+  com.plato.category      # (Mandatory) Category name; must match CATEGORY_ICONS
+  com.plato.name          # Service name; defaults to container_name if not provided
+  com.plato.icon          # Optional icon
+  com.plato.logo          # Logo URL/path; defaults to /www/assets/tools/{name}.png if not provided and com.homer.icon not set
+  com.plato.subtitle      # Optional subtitle
+  com.plato.tag           # Optional tag
+  com.plato.tagstyle      # Optional tag style
+  com.plato.keywords      # Comma-separated keywords
+  com.plato.ui_port       # Optional; used to disambiguate multiple ports or host-mounted containers
+  com.plato.url           # Optional main service URL; overrides nginx search
+  com.plato.importance    # Defaults to 0; higher numbers appear first in the category
+```
+---
+
 ## 🌟 Mandatory Environment Variables
 
 | Variable        | Description                                                                                  |
@@ -18,7 +45,7 @@ generates on runtime the Homer Dashboard
 | Variable                          | Default         |
 |-----------------------------------|-----------------|
 | TITLE                             | Demo dashboard  |
-| SUBTITLE                          | Homer           |
+| SUBTITLE                          | Plato           |
 | LOGO                              | logo.png        |
 | COLUMNS                           | auto            |
 | HEADER                            | true            |
@@ -61,20 +88,20 @@ generates on runtime the Homer Dashboard
 
 ---
 
-## 🏷 Docker Labels
+## Deploy
 
 ```yaml
-labels:
-  com.homer.category      # (Mandatory) Category name; must match CATEGORY_ICONS
-  com.homer.name          # Service name; defaults to container_name if not provided
-  com.homer.icon          # Optional icon
-  com.homer.logo          # Logo URL/path; defaults to /www/assets/tools/{name}.png if not provided and com.homer.icon not set
-  com.homer.subtitle      # Optional subtitle
-  com.homer.tag           # Optional tag
-  com.homer.tagstyle      # Optional tag style
-  com.homer.keywords      # Comma-separated keywords
-  and com.homer.ui_port
-  com.homer.ui_port       # Optional; used to disambiguate multiple ports or host-mounted containers
-  com.homer.url           # Optional main service URL; overrides nginx search
-  com.homer.importance    # Defaults to 0; higher numbers appear first in the category
+services:
+  plato:
+    image: josefilipeferreira/plato
+    container_name: plato
+    volumes:
+      - ${DATADIR}/plato/assets:/www/assets
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/nginx:/etc/nginx:ro # optional if you want auto external URL
+    environment:
+      HOSTNAME: "kiwi"
+      CATEGORY_ICONS: "Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox"
+    ports:
+      - 8084:8080
 ```
