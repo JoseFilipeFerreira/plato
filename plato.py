@@ -3,19 +3,31 @@ import docker
 import os
 import re
 import yaml
+from pathlib import Path
 
 client = docker.from_env()
 
+SELFHST_ICONS = Path("/www/assets/selfhst-icons/png")
+CUSTOM_ICONS = Path("/www/assets/custom")
+
+AUTOMATIC_ICONS = True
+
 CATEGORY_ICONS = os.getenv("CATEGORY_ICONS")
-if not CATEGORY_ICONS:
-    print("CATEGORY_ICONS must be provided")
-    exit()
+
+if CATEGORY_ICONS:
+    CATEGORY_ICONS_DICT = dict(
+        (k.strip(), v.strip())
+        for k, v in (item.split("=", 1) for item in CATEGORY_ICONS.split(",") if "=" in item)
+    )
+else:
+    print("CATEGORY_ICONS not provided. Column order will be random")
+    CATEGORY_ICONS_DICT = {}
 
 HOSTNAME = os.getenv("HOSTNAME")
 
 if not HOSTNAME:
     print("HOSTNAME must be provided")
-    exit()
+    exit(1)
 
 # Create base config from env
 configuration = {
@@ -23,8 +35,8 @@ configuration = {
     'subtitle': os.getenv("SUBTITLE", "Plato"),
     'logo':     os.getenv("LOGO", "logo.png"),
     'columns':  os.getenv("COLUMNS", "auto"),
-    'header':   os.getenv("HEADER", "true"),
-    'footer':   os.getenv("FOOTER", "false"),
+    'header':   os.getenv("HEADER", True),
+    'footer':   os.getenv("FOOTER", False),
     'theme': "default",
     'colors': {
         'light': {
@@ -112,11 +124,28 @@ def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
     return {port: sorted(urls) for port, urls in port_url_map.items()}
 
 
+def get_ui_port(container, name):
+    unique_ports = set()
 
-url_pairs = get_nginx_port_url_map()
+    for _, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
+        if host_mappings:
+            for mapping in host_mappings:
+                unique_ports.add(mapping['HostPort'])
 
-pairs = [item.split("=", 1) for item in CATEGORY_ICONS.split(",") if "=" in item]
-categories = [{"name": k.strip(), "icon": v.strip(), "items": []} for k, v in pairs]
+    if len(unique_ports) == 0:
+        print(f"No port found for {name}\nDisanbiguation needed with com.plato.ui_port")
+        exit(1)
+
+    if len(unique_ports) > 1:
+        print(f"More than one port found for {name}\nDisanbiguation needed with com.plato.ui_port")
+        exit(1)
+
+    return next(iter(unique_ports))
+
+NGINX_URL_PAIRS = get_nginx_port_url_map()
+
+
+categories = {}
 
 for container in client.containers.list():
 
@@ -127,84 +156,94 @@ for container in client.containers.list():
     if not category:
         continue
 
-    name     = labels.get("com.plato.name", container.name.title())
+    container_name = container.name.lower()
+
+    name     = labels.get("com.plato.name", container_name.title())
     url      = labels.get("com.plato.url")
     ui_port  = labels.get("com.plato.ui_port")
 
     if not url:
         if not ui_port:
-            unique_ports = set()
-
-            for container_port, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
-                if host_mappings:
-                    for mapping in host_mappings:
-                        unique_ports.add(mapping['HostPort'])
-
-            if len(unique_ports) == 0:
-                print(f"No port found for {name}\nDisanbiguation needed with com.plato.ui_port")
-                exit()
-            if len(unique_ports) > 1:
-                print(f"More than one port found for {name}\nDisanbiguation needed with com.plato.ui_port")
-                exit()
-
-            ui_port = next(iter(unique_ports))
+            ui_port = get_ui_port(container, name)
 
         if ui_port:
             url = [f"http://{HOSTNAME}:{ui_port}"]
-        if url_pairs:
-            url = url_pairs.get(ui_port, url)
+        if NGINX_URL_PAIRS:
+            url = NGINX_URL_PAIRS.get(ui_port, url)
 
     if not url:
         print(f"Could not create URL for {name}")
-        exit()
-
-    logo       = labels.get("com.plato.logo")
-    subtitle   = labels.get("com.plato.subtitle")
-    tag        = labels.get("com.plato.tag")
-    tagstyle   = labels.get("com.plato.tagstyle")
-    keywords   = labels.get("com.plato.keywords")
-    importance = labels.get("com.plato.importance",0)
-
-    result = {"name": name, "url": url[0], "importance": importance}
-
-    icon     = labels.get("com.plato.icon")
-    if icon:
-        result['icon'] = icon
-    elif logo:
-        result['logo'] = logo
-    else:
-        logo_filename = f"/www/assets/tools/{name.lower()}.png"
-        if os.path.exists(logo_filename):
-            result['logo'] = f"assets/tools/{name.lower()}.png"
-            print(f"Found relevant icon for {name}")
-
-    if subtitle:
-        result['subtitle'] = subtitle
-    if tag:
-        result['tag'] = tag
-    if tagstyle:
-        result['tagstyle'] = tagstyle
-    if keywords:
-        result['keywords'] = keywords
-
-    appended = False
-    for cat in categories:
-        if cat["name"] == category:
-            cat["items"].append(result)
-            appended = True
-            break
-
-    if not appended:
-        print(f"Category {category} from {name} is not defined")
-        exit()
+        exit(1)
 
 
+    try:
+        importance = float(labels.get("com.plato.importance", 0))
+    except (TypeError, ValueError):
+        print(f"com.plato.importance must be a float value for {name}")
+        exit(1)
+
+    result = {
+        "name"       : name,
+        "url"        : url[0],
+        "importance" : importance,
+        "subtitle"   : labels.get("com.plato.subtitle"),
+        "tag"        : labels.get("com.plato.tag"),
+        "tagstyle"   : labels.get("com.plato.tagstyle"),
+        "keywords"   : labels.get("com.plato.keywords"),
+        "icon"       : labels.get("com.plato.icon")
+    }
+
+    custom_logo = labels.get("com.plato.custom-logo")
+
+    if custom_logo:
+        result['logo'] = custom_logo
+
+    elif AUTOMATIC_ICONS:
+        search_icon = container_name
+
+        selfhst_icon = labels.get("com.plato.selfhst-icon")
+
+        if selfhst_icon:
+            search_icon = selfhst_icon
+
+        selfhst_icon_path = SELFHST_ICONS / f"{search_icon.replace("_","-").replace(" ","-")}.png"
+
+        custom_icon_path = CUSTOM_ICONS / f"{search_icon}.png"
+
+        if os.path.exists(custom_icon_path):
+            result['logo'] = str(Path(*custom_icon_path.parts[2:]))
+            print(f"Found Custom icon for {name}: {search_icon}")
+        elif os.path.exists(selfhst_icon_path):
+            result['logo'] = str(Path(*selfhst_icon_path.parts[2:]))
+            print(f"Found selfh.st icon for {name}: {search_icon}")
+        else:
+            print(f"Icon not found for {name}: {search_icon}")
+            if selfhst_icon:
+                print("Provided logo is invalid: com.plato.selfhst-icon")
+                exit(1)
+
+    categories.setdefault(category, []).append(result)
+
+# Sort each column
 for category in categories:
-    category["items"].sort(key=lambda x: x["importance"], reverse=True)
+    categories[category].sort(key=lambda x: x["importance"], reverse=True)
 
-configuration['services'] = categories
 
-print(yaml.dump(configuration, sort_keys=False, default_flow_style=False))
+configuration['services'] = sorted(
+    [
+        {
+            "name": category,
+            "icon": CATEGORY_ICONS_DICT.get(category),
+            "items": items
+        }
+        for category, items in categories.items()
+    ],
+    key=lambda x: list(CATEGORY_ICONS_DICT.keys()).index(x["name"])
+        if x["name"] in CATEGORY_ICONS_DICT
+        else len(CATEGORY_ICONS_DICT)
+)
+
+# print(yaml.dump(configuration, sort_keys=False, default_flow_style=False))
 
 with open("/www/assets/config.yml", "w") as f:
     yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)

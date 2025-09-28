@@ -1,7 +1,9 @@
 # 🏺 Plato – Homer Dashboard Generator
 
 Reads labels from docker, crossreferences with nginx to get external url and
-generates on runtime the Homer Dashboard
+generates on runtime the Homer Dashboard.
+
+Includes automatic selfh.st icons for ease of use.
 
 ## 🏷 Docker Labels
 
@@ -12,6 +14,9 @@ If the container only has one exposed port it will be considered the UI port. If
 not, you have to disambiguate using `com.plato.ui_port`. Then this port is used
 to search the nginx config to see if there is any external URL.
 
+Plato uses your container name to search selfh.st icon list. If you want to
+override this name you can use the label `com.plato.selfhst-icon`.
+
 Full list of labels is as follow:
 
 ```yaml
@@ -19,7 +24,8 @@ labels:
   com.plato.category      # (Mandatory) Category name; must match CATEGORY_ICONS
   com.plato.name          # Service name; defaults to container_name if not provided
   com.plato.icon          # Optional icon
-  com.plato.logo          # Logo URL/path; defaults to /www/assets/tools/{name}.png if not provided and com.homer.icon not set
+  com.plato.selfhst-icon  # Logo URL/path; overrides container name to search on selfh.st icons
+  com.plato.custom-logo   # Logo URL/path; overrides all other logo rules
   com.plato.subtitle      # Optional subtitle
   com.plato.tag           # Optional tag
   com.plato.tagstyle      # Optional tag style
@@ -96,9 +102,9 @@ services:
     image: josefilipeferreira/plato
     container_name: plato
     volumes:
-      - ${DATADIR}/plato/assets:/www/assets
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/nginx:/etc/nginx:ro # optional if you want auto external URL
+      # - /path/to/icons/custom:/www/assets/custom if you want to add or override icons to selfhst list
     environment:
       HOSTNAME: "kiwi"
       CATEGORY_ICONS: "Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox"
