@@ -7,10 +7,15 @@ from pathlib import Path
 
 client = docker.from_env()
 
+HOSTNAME = os.getenv("HOSTNAME")
+if not HOSTNAME:
+    print("HOSTNAME must be provided")
+    exit(1)
+
 SELFHST_ICONS = Path("/www/assets/selfhst-icons/png")
 CUSTOM_ICONS = Path("/www/assets/custom")
 
-AUTOMATIC_ICONS = True
+AUTOMATIC_ICONS = os.getenv("AUTOMATIC_ICONS", "True").lower() in ("1", "true", "yes")
 
 CATEGORY_ICONS = os.getenv("CATEGORY_ICONS")
 
@@ -23,11 +28,7 @@ else:
     print("CATEGORY_ICONS not provided. Column order will be random")
     CATEGORY_ICONS_DICT = {}
 
-HOSTNAME = os.getenv("HOSTNAME")
-
-if not HOSTNAME:
-    print("HOSTNAME must be provided")
-    exit(1)
+NGINX_CONFIG_PATH = os.getenv("NGINX_CONFIG_PATH", "/etc/nginx/nginx.conf")
 
 # Create base config from env
 configuration = {
@@ -72,7 +73,6 @@ configuration = {
 }
 
 
-NGINX_CONFIG_PATH = os.getenv("NGINX_CONFIG_PATH", "/etc/nginx/nginx.conf")
 
 def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
     valid_hostname = re.compile(r'^[a-zA-Z0-9.-]+$')
@@ -243,7 +243,7 @@ configuration['services'] = sorted(
         else len(CATEGORY_ICONS_DICT)
 )
 
-# print(yaml.dump(configuration, sort_keys=False, default_flow_style=False))
+print(yaml.dump(configuration, sort_keys=False, default_flow_style=False))
 
 with open("/www/assets/config.yml", "w") as f:
     yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)

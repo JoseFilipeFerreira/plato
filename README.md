@@ -1,61 +1,62 @@
 # 🏺 Plato – Homer Dashboard Generator
 
 Reads labels from docker, crossreferences with nginx to get external url and
-generates on runtime the Homer Dashboard.
+generates a Homer Dashboard dinamically.
 
 Includes automatic selfh.st icons for ease of use.
 
 ## 🏷 Docker Labels
 
-The claim to fame of this software is simple. The only label you have to add to
-each docker container you want to show on the page is `com.plato.category`. Every other tag is optional.
+The claim to fame of this software is simple. The only label you **need** to add to
+each docker container on the page is `com.plato.category`. Every other tag is optional.
 
-If the container only has one exposed port it will be considered the UI port. If
-not, you have to disambiguate using `com.plato.ui_port`. Then this port is used
-to search the nginx config to see if there is any external URL.
-
-Plato uses your container name to search selfh.st icon list. If you want to
-override this name you can use the label `com.plato.selfhst-icon`.
+- If the container only has one exposed port it will be considered the UI port.
+- If not, you have to disambiguate using `com.plato.ui_port`
+- This port is then used to search your NGINX config (if provided) for the
+    external url of the service.
+- Plato uses the container name to search the selfh.st icon list. To override this, use `com.plato.selfhst-icon`.
 
 Full list of labels is as follow:
 
 ```yaml
 labels:
   com.plato.category      # (Mandatory) Category name; must match CATEGORY_ICONS
-  com.plato.name          # Service name; defaults to container_name if not provided
-  com.plato.icon          # Optional icon
-  com.plato.selfhst-icon  # Logo URL/path; overrides container name to search on selfh.st icons
-  com.plato.custom-logo   # Logo URL/path; overrides all other logo rules
-  com.plato.subtitle      # Optional subtitle
-  com.plato.tag           # Optional tag
-  com.plato.tagstyle      # Optional tag style
-  com.plato.keywords      # Comma-separated keywords
-  com.plato.ui_port       # Optional; used to disambiguate multiple ports or host-mounted containers
-  com.plato.url           # Optional main service URL; overrides nginx search
-  com.plato.importance    # Defaults to 0; higher numbers appear first in the category
+  com.plato.name          # Optional; Service name; defaults to container name if not provided
+  com.plato.selfhst-icon  # Optional; Overrides container name for selfh.st icons
+  com.plato.custom-logo   # Optional; Logo URL/path; overrides everything
+  com.plato.icon          # Optional;
+  com.plato.subtitle      # Optional;
+  com.plato.tag           # Optional;
+  com.plato.tagstyle      # Optional;
+  com.plato.keywords      # Optional;
+  com.plato.ui_port       # Optional; disambiguates multiple ports or host-mounted containers
+  com.plato.url           # Optional; main service URL; overrides everything
+  com.plato.importance    # Optional; Defaults to 0; higher numbers appear first
 ```
 ---
 
 ## 🌟 Mandatory Environment Variables
 
-| Variable        | Description                                                                                  |
-|-----------------|----------------------------------------------------------------------------------------------|
-| CATEGORY_ICONS  | Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt` |
-| HOSTNAME        | The hostname of the container or service.                                                   |
+| Variable        | Description                   |
+|-----------------|-------------------------------|
+| HOSTNAME        | The hostname of the machine.  |
 
 ---
 
 
 ## ⚙️ Optional Environment Variables (with defaults)
 
-| Variable                          | Default         |
-|-----------------------------------|-----------------|
-| TITLE                             | Demo dashboard  |
-| SUBTITLE                          | Plato           |
-| LOGO                              | logo.png        |
-| COLUMNS                           | auto            |
-| HEADER                            | true            |
-| FOOTER                            | false           |
+| Variable                          | Default         | Description |
+|-----------------------------------|-----------------|-------------|
+| TITLE                             | Demo dashboard  | Homer Title |
+| SUBTITLE                          | Plato           | Homer subtitle |
+| LOGO                              | logo.png        | Homer Logo     |
+| COLUMNS                           | auto            | Homer Columns  |
+| HEADER                            | true            | Homer header   |
+| FOOTER                            | false           | Homer Footer   |
+| CATEGORY_ICONS                    | ""              | Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt` |
+| NGINX_CONFIG_PATH                 | "/etc/nginx/nginx.conf" | Path were NGINX config is mounted |
+| AUTOMATIC_ICONS                   | True                    | If you want to auto search icons based on container name |
 
 ### Light Theme Colors
 
