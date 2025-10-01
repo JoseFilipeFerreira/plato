@@ -2,6 +2,7 @@ from docker.errors import NotFound
 from pathlib import Path
 import crossplane
 import docker
+import json
 import logging
 import os
 import re
@@ -41,14 +42,15 @@ logger = logging.getLogger(__name__)
 # ===================================================
 #                  CONFIGURATION
 # ===================================================
+ASSETS_PATH   = Path("/www/assets")
+SELFHST_ICONS = ASSETS_PATH / Path("selfhst-icons/png")
+CUSTOM_ICONS  = ASSETS_PATH / Path("custom")
 
 HOSTNAME = os.getenv("HOSTNAME")
 if not HOSTNAME:
     logger.error("HOSTNAME must be provided")
     exit(1)
 
-SELFHST_ICONS   = Path("/www/assets/selfhst-icons/png")
-CUSTOM_ICONS    = Path("/www/assets/custom")
 AUTOMATIC_ICONS = os.getenv("AUTOMATIC_ICONS", "True").lower() in ("1", "true", "yes")
 CATEGORY_ICONS  = os.getenv("CATEGORY_ICONS")
 
@@ -104,6 +106,34 @@ configuration = {
     },
     'services': []
 }
+
+# ===================================================
+#                  MANIFEST
+# ===================================================
+
+manifest = {
+    "name":       os.getenv("PWA_NAME", "Plato Dashboard"),
+    "short_name": os.getenv("PWA_SHORT_NAME", "Plato"),
+    "start_url":"../",
+    "display":"standalone",
+    "background_color": os.getenv("PWA_BACKGROUND_COLOR", "#ffffff"),
+    "lang":"en",
+    "scope":"../",
+    "description": os.getenv("PWA_DESCRIPTION", "Plato Server Dashboard"),
+    "theme_color": os.getenv("PWA_THEME_COLOR", "#3367D6"),
+    "icons":[
+        {"src":"./icons/pwa-192x192.png","sizes":"192x192","type":"image/png"},
+        {"src":"./icons/pwa-512x512.png","sizes":"512x512","type":"image/png"}
+    ]
+}
+
+manifest_path = ASSETS_PATH / Path("manifest.json")
+
+with manifest_path.open("w", encoding="utf-8") as f:
+    json.dump(manifest, f, indent=4)
+
+logger.debug("Manifest content:\n%s", json.dumps(manifest, indent=4))
+logger.info(f"Manifest generated to {manifest_path}")
 
 # ===================================================
 #                  CONTAINER UTILS
@@ -296,7 +326,7 @@ def generate_homer_config():
 
     logger.debug(yaml.dump(configuration, sort_keys=False, default_flow_style=False))
 
-    with open("/www/assets/config.yml", "w") as f:
+    with open(ASSETS_PATH / Path("config.yml"), "w") as f:
         yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)
 
 if __name__ == "__main__":
