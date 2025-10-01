@@ -30,11 +30,11 @@ class LevelColorFormatter(logging.Formatter):
 
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(levelname)s] %(message)s"
+    format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
 for handler in logging.getLogger().handlers:
-    handler.setFormatter(LevelColorFormatter(handler.formatter._fmt))
+    handler.setFormatter(LevelColorFormatter(handler.formatter._fmt, datefmt="%Y-%m-%d %H:%M:%S"))
 
 logger = logging.getLogger(__name__)
 
@@ -263,10 +263,10 @@ def generate_homer_config():
 
             if os.path.exists(custom_icon_path):
                 result['logo'] = str(Path(*custom_icon_path.parts[2:]))
-                logger.info(f"Found Custom icon for {name}: {search_icon}")
+                logger.debug(f"Found Custom icon for {name}: {search_icon}")
             elif os.path.exists(selfhst_icon_path):
                 result['logo'] = str(Path(*selfhst_icon_path.parts[2:]))
-                logger.info(f"Found selfh.st icon for {name}: {search_icon}")
+                logger.debug(f"Found selfh.st icon for {name}: {search_icon}")
             else:
                 logger.warning(f"Icon not found for {name}: {search_icon}")
                 if selfhst_icon:
@@ -300,6 +300,7 @@ def generate_homer_config():
         yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)
 
 if __name__ == "__main__":
+    logger.info("🔧 Generating Homer dashboard configuration...")
     generate_homer_config()
 
     for event in client.events(decode=True, filters={"type": "container"}):
@@ -308,6 +309,8 @@ if __name__ == "__main__":
         if action.startswith("exec_"):
             continue
 
-        logger.debug("📦 Container event:", event["Action"], "on", event["Actor"]["Attributes"].get("name"))
+        logger.info("🔧 Regenerating Homer dashboard configuration...")
+
+        logger.debug("Container event:", event["Action"], "on", event["Actor"]["Attributes"].get("name"))
 
         generate_homer_config()

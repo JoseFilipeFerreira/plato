@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# Launch Plato
 python3 /usr/local/bin/plato.py &
 
-/bin/sh /entrypoint.sh
+# Launch Homer
+exec lighttpd -D -f /lighttpd.conf
