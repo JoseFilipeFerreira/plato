@@ -44,6 +44,21 @@ for handler in logging.getLogger().handlers:
 
 logger = logging.getLogger(__name__)
 
+logger.info("""
+      _,--------._
+      `:._______,:)
+        \\..::ooOo/
+    ___  )::ooOo(  ___     ██████╗ ██╗      █████╗ ████████╗ ██████╗
+   /,-.`/..::ooOo.',-.\\    ██╔══██╗██║     ██╔══██╗╚══██╔══╝██╔═══██╗
+  ((  ,'..::ooOoOOb.  ))   ██████╔╝██║     ███████║   ██║   ██║   ██║
+   \\`/ . ..::ooOoOO8'/     ██╔═══╝ ██║     ██╔══██║   ██║   ██║   ██║
+    Y . ..::ooOoOO888b.    ██║     ███████╗██║  ██║   ██║   ╚██████╔╝
+   (   . ..::ooOoOO888b    ╚═╝     ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝
+    \\ . ..::ooOoOO888F
+     `.. ..::ooOoOOP'
+       `._..ooOO8P'
+         `------'
+""")
 # ===================================================
 #                  CONFIGURATION
 # ===================================================
@@ -256,7 +271,9 @@ class NginxConfigWatcher(FileSystemEventHandler):
                 _reload_nginx_config()
 
 def start_nginx_watcher():
+
     _reload_nginx_config()
+
     event_handler = NginxConfigWatcher()
     observer = Observer()
     if NGINX_CONFIG_PATH.parent.exists():
@@ -292,7 +309,7 @@ def get_ui_port(container, name: str) -> str:
 
 
 def generate_homer_config():
-    logger.info("🔧 Regenerating Homer dashboard configuration...")
+    logger.info("🔧 Generating Homer dashboard configuration...")
 
     nginx_url_pairs = get_nginx_config()
 
@@ -404,6 +421,7 @@ def generate_homer_config():
         yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)
 
 if __name__ == "__main__":
+
     start_nginx_watcher()
 
     generate_homer_config()
