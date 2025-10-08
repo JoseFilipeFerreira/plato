@@ -51,7 +51,7 @@ labels:
 | Variable                          | Default         | Description |
 |-----------------------------------|-----------------|-------------|
 | CATEGORY_ICONS                    | ""              | Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt` |
-| NGINX_CONFIG_PATH                 | "/etc/nginx/nginx.conf" | Path were NGINX config is mounted |
+| NGINX_CONFIG_FOLDER                 | "/etc/nginx" | Path were NGINX config is mounted |
 | AUTOMATIC_ICONS                   | True                    | If you want to auto search icons based on container name |
 
 ### Homer Specific

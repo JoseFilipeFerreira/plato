@@ -1,11 +1,16 @@
 from docker.errors import NotFound
 from pathlib import Path
+from pathlib import Path
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 import crossplane
 import docker
 import json
 import logging
 import os
 import re
+import threading
+import time
 import yaml
 
 client = docker.from_env()
@@ -63,7 +68,10 @@ else:
     logger.warning("CATEGORY_ICONS not provided. Column order will be random")
     CATEGORY_ICONS_DICT = {}
 
-NGINX_CONFIG_PATH = os.getenv("NGINX_CONFIG_PATH", "/etc/nginx/nginx.conf")
+NGINX_CONFIG_FOLDER = Path(os.getenv("NGINX_CONFIG_FOLDER", "/etc/nginx"))
+
+NGINX_CONFIG_PATH = NGINX_CONFIG_FOLDER / "nginx.conf"
+SITES_ENABLED_DIR = NGINX_CONFIG_FOLDER / "sites-enabled"
 
 # Create base config from env
 configuration = {
@@ -133,7 +141,7 @@ with manifest_path.open("w", encoding="utf-8") as f:
     json.dump(manifest, f, indent=4)
 
 logger.debug("Manifest content:\n%s", json.dumps(manifest, indent=4))
-logger.info(f"Manifest generated to {manifest_path}")
+logger.info(f"Manifest generated on {manifest_path}")
 
 # ===================================================
 #                  CONTAINER UTILS
@@ -143,12 +151,23 @@ def safe_list_containers(all=True):
     for c in client.api.containers(all=all):
         cid = c["Id"]
         try:
-            yield client.containers.get(cid)  # gives full attrs (labels, ports, etc.)
+            yield client.containers.get(cid)
         except NotFound:
             # Container vanished between list and inspect
             continue
 
+# ===================================================
+#                  NGINX PARSING
+# ===================================================
+
+_nginx_config = None
+_lock = threading.Lock()
+_nginx_cooldown = 5
+_latest_nginx_reload = 0
+
 def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
+    logger.info("Parsing Nginx Config")
+
     valid_hostname = re.compile(r'^[a-zA-Z0-9.-]+$')
 
     parsed = crossplane.parse(nginx_conf)
@@ -195,10 +214,65 @@ def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
                                             port_url_map.setdefault(internal_port, set()).add(url)
 
     # Convert sets to sorted lists
-    return {port: sorted(urls) for port, urls in port_url_map.items()}
+    port_url_map = {port: sorted(urls) for port, urls in port_url_map.items()}
+
+    if port_url_map:
+        log_url_pairs = ''
+        for port in port_url_map:
+            log_url_pairs += f"  {port} -> {port_url_map[port]}\n"
+        logger.debug(log_url_pairs)
+    else:
+        logger.warning("Nginx config not found")
+
+    return port_url_map
 
 
-def get_ui_port(container, name):
+def _reload_nginx_config():
+    global _nginx_config, _latest_nginx_reload
+    now = time.time()
+    with _lock:
+        _latest_nginx_reload = now
+    try:
+        new_config = get_nginx_port_url_map()
+        with _lock:
+            _nginx_config = new_config
+    except Exception as e:
+        logger.error(f"Failed to reload nginx config: {e}")
+
+def get_nginx_config():
+    with _lock:
+        return _nginx_config
+
+
+class NginxConfigWatcher(FileSystemEventHandler):
+    def on_any_event(self, event):
+        if event.is_directory:
+            return
+        path = Path(event.src_path)
+        if path == NGINX_CONFIG_PATH or path.parent == SITES_ENABLED_DIR:
+            now = time.time()
+            if now - _latest_nginx_reload > _nginx_cooldown:
+                logger.info(f"Detected change in Nginx config: {path}")
+                _reload_nginx_config()
+
+def start_nginx_watcher():
+    _reload_nginx_config()
+    event_handler = NginxConfigWatcher()
+    observer = Observer()
+    if NGINX_CONFIG_PATH.parent.exists():
+        observer.schedule(event_handler, NGINX_CONFIG_PATH.parent, recursive=False)
+    if SITES_ENABLED_DIR.exists():
+        observer.schedule(event_handler, SITES_ENABLED_DIR, recursive=True)
+
+    observer.daemon = True
+    observer.start()
+    return observer
+
+# ===================================================
+#                  GENERATE CONFIG
+# ===================================================
+
+def get_ui_port(container, name: str) -> str:
     unique_ports = set()
 
     for _, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
@@ -216,19 +290,19 @@ def get_ui_port(container, name):
 
     return next(iter(unique_ports))
 
-# ===================================================
-#                  GENERATE CONFIG
-# ===================================================
 
 def generate_homer_config():
-    NGINX_URL_PAIRS = get_nginx_port_url_map()
+    logger.info("🔧 Regenerating Homer dashboard configuration...")
 
+    nginx_url_pairs = get_nginx_config()
 
     categories = {}
 
     for container in safe_list_containers():
+
+        # skip stopped/paused containers
         if container.status != "running":
-            continue  # skip stopped/paused containers
+            continue
 
         labels = container.labels
 
@@ -249,8 +323,8 @@ def generate_homer_config():
 
             if ui_port:
                 url = [f"http://{HOSTNAME}:{ui_port}"]
-            if NGINX_URL_PAIRS:
-                url = NGINX_URL_PAIRS.get(ui_port, url)
+            if nginx_url_pairs:
+                url = nginx_url_pairs.get(ui_port, url)
 
         if not url:
             logger.error(f"Could not create URL for {name}")
@@ -296,9 +370,9 @@ def generate_homer_config():
                 logger.debug(f"Found Custom icon for {name}: {search_icon}")
             elif os.path.exists(selfhst_icon_path):
                 result['logo'] = str(Path(*selfhst_icon_path.parts[2:]))
-                logger.debug(f"Found selfh.st icon for {name}: {search_icon}")
+                logger.debug(f"Found selfh.st icon for {name}: {search_icon}.png")
             else:
-                logger.warning(f"Icon not found for {name}: {search_icon}")
+                logger.warning(f"Icon not found for {name}: {search_icon}.png")
                 if selfhst_icon:
                     logger.error("Provided logo is invalid: com.plato.selfhst-icon")
                     exit(1)
@@ -330,7 +404,8 @@ def generate_homer_config():
         yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)
 
 if __name__ == "__main__":
-    logger.info("🔧 Generating Homer dashboard configuration...")
+    start_nginx_watcher()
+
     generate_homer_config()
 
     for event in client.events(decode=True, filters={"type": "container"}):
@@ -338,8 +413,6 @@ if __name__ == "__main__":
         action = event["Action"]
         if action.startswith("exec_"):
             continue
-
-        logger.info("🔧 Regenerating Homer dashboard configuration...")
 
         logger.debug("Container event:", event["Action"], "on", event["Actor"]["Attributes"].get("name"))
 

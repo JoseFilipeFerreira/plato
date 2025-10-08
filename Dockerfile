@@ -7,7 +7,7 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install --upgrade pip
-RUN pip install crossplane docker pyyaml
+RUN pip install crossplane docker pyyaml watchdog
 
 RUN git clone --depth=1 https://github.com/selfhst/icons.git /www/assets/selfhst-icons
 
