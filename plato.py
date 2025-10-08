@@ -298,11 +298,11 @@ def get_ui_port(container, name: str) -> str:
                 unique_ports.add(mapping['HostPort'])
 
     if len(unique_ports) == 0:
-        logger.error(f"No port found for {name}\nDisanbiguation needed with com.plato.ui_port")
+        logger.error(f"No port found for {name}\nDisanbiguation needed with com.plato.ui-port")
         exit(1)
 
     if len(unique_ports) > 1:
-        logger.error(f"More than one port found for {name}\nDisanbiguation needed with com.plato.ui_port")
+        logger.error(f"More than one port found for {name}\nDisanbiguation needed with com.plato.ui-port")
         exit(1)
 
     return next(iter(unique_ports))
@@ -332,7 +332,7 @@ def generate_homer_config():
 
         name     = labels.get("com.plato.name", container_name.title())
         url      = labels.get("com.plato.url")
-        ui_port  = labels.get("com.plato.ui_port")
+        ui_port  = labels.get("com.plato.ui-port")
 
         if not url:
             if not ui_port:

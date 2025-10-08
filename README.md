@@ -13,7 +13,7 @@ The claim to fame of this software is simple. The only label you **need** to add
 each docker container on the page is `com.plato.category`. Every other tag is optional.
 
 - If the container only has one exposed port it will be considered the UI port.
-- If not, you have to disambiguate using `com.plato.ui_port`
+- If not, you have to disambiguate using `com.plato.ui-port`
 - This port is then used to search your NGINX config (if provided) for the
     external url of the service.
 - Plato uses the container name to search the selfh.st icon list. To override this, use `com.plato.selfhst-icon`.
@@ -31,7 +31,7 @@ labels:
   com.plato.tag           # Optional;
   com.plato.tagstyle      # Optional;
   com.plato.keywords      # Optional;
-  com.plato.ui_port       # Optional; disambiguates multiple ports or host-mounted containers
+  com.plato.ui-port       # Optional; disambiguates multiple ports or host-mounted containers
   com.plato.url           # Optional; main service URL; overrides everything
   com.plato.importance    # Optional; Defaults to 0; higher numbers appear first
 ```
