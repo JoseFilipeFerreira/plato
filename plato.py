@@ -1,5 +1,5 @@
 from docker.errors import NotFound
-from pathlib import Path
+from typing import Tuple, List
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import requests
 import threading
 import time
 import yaml
@@ -23,10 +24,11 @@ LEVEL_COLORS = {
     'DEBUG':    "\033[36mDEBUG", # Cyan
     'INFO':     "\033[34mINFO", # Blue
     'WARNING':  "\033[33mWARN", # Orange
-    'ERROR':    "\033[31mERRO", # Red
+    'ERROR':    "\033[31mERROR", # Red
     'CRITICAL': "\033[41mCRIT", # Extra Red
 }
 RESET = "\033[0m"
+
 
 class LevelColorFormatter(logging.Formatter):
     def format(self, record):
@@ -34,31 +36,23 @@ class LevelColorFormatter(logging.Formatter):
         record.levelname = f"{levelname_color}{RESET}"
         return super().format(record)
 
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, log_level, logging.INFO),
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
+
+# Reduce logger polution
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("docker").setLevel(logging.WARNING)
 
 for handler in logging.getLogger().handlers:
     handler.setFormatter(LevelColorFormatter(handler.formatter._fmt, datefmt="%Y-%m-%d %H:%M:%S"))
 
+
 logger = logging.getLogger(__name__)
 
-logger.info("""
-      _,--------._
-      `:._______,:)
-        \\..::ooOo/
-    ___  )::ooOo(  ___     ██████╗ ██╗      █████╗ ████████╗ ██████╗
-   /,-.`/..::ooOo.',-.\\    ██╔══██╗██║     ██╔══██╗╚══██╔══╝██╔═══██╗
-  ((  ,'..::ooOoOOb.  ))   ██████╔╝██║     ███████║   ██║   ██║   ██║
-   \\`/ . ..::ooOoOO8'/     ██╔═══╝ ██║     ██╔══██║   ██║   ██║   ██║
-    Y . ..::ooOoOO888b.    ██║     ███████╗██║  ██║   ██║   ╚██████╔╝
-   (   . ..::ooOoOO888b    ╚═╝     ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝
-    \\ . ..::ooOoOO888F
-     `.. ..::ooOoOOP'
-       `._..ooOO8P'
-         `------'
-""")
 # ===================================================
 #                  CONFIGURATION
 # ===================================================
@@ -66,27 +60,16 @@ ASSETS_PATH   = Path("/www/assets")
 SELFHST_ICONS = ASSETS_PATH / Path("selfhst-icons/png")
 CUSTOM_ICONS  = ASSETS_PATH / Path("custom")
 
+NGINX_CONFIG_FOLDER = Path("/etc/nginx")
+NGINX_CONFIG_PATH = NGINX_CONFIG_FOLDER / "nginx.conf"
+SITES_ENABLED_DIR = NGINX_CONFIG_FOLDER / "sites-enabled"
+
 HOSTNAME = os.getenv("HOSTNAME")
-if not HOSTNAME:
-    logger.error("HOSTNAME must be provided")
-    exit(1)
 
 AUTOMATIC_ICONS = os.getenv("AUTOMATIC_ICONS", "True").lower() in ("1", "true", "yes")
 CATEGORY_ICONS  = os.getenv("CATEGORY_ICONS")
+CATEGORY_ICONS_DICT = {}
 
-if CATEGORY_ICONS:
-    CATEGORY_ICONS_DICT = dict(
-        (k.strip(), v.strip())
-        for k, v in (item.split("=", 1) for item in CATEGORY_ICONS.split(",") if "=" in item)
-    )
-else:
-    logger.warning("CATEGORY_ICONS not provided. Column order will be random")
-    CATEGORY_ICONS_DICT = {}
-
-NGINX_CONFIG_FOLDER = Path(os.getenv("NGINX_CONFIG_FOLDER", "/etc/nginx"))
-
-NGINX_CONFIG_PATH = NGINX_CONFIG_FOLDER / "nginx.conf"
-SITES_ENABLED_DIR = NGINX_CONFIG_FOLDER / "sites-enabled"
 
 # Create base config from env
 configuration = {
@@ -150,13 +133,14 @@ manifest = {
     ]
 }
 
-manifest_path = ASSETS_PATH / Path("manifest.json")
+MANIFEST_PATH = ASSETS_PATH / Path("manifest.json")
 
-with manifest_path.open("w", encoding="utf-8") as f:
-    json.dump(manifest, f, indent=4)
+def write_manifest():
+    with MANIFEST_PATH.open("w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=4)
 
-logger.debug("Manifest content:\n%s", json.dumps(manifest, indent=4))
-logger.info(f"Manifest generated on {manifest_path}")
+    logger.debug("Manifest content:\n%s", json.dumps(manifest, indent=4))
+    logger.info(f"Manifest generated on {MANIFEST_PATH}")
 
 # ===================================================
 #                  CONTAINER UTILS
@@ -286,10 +270,26 @@ def start_nginx_watcher():
     return observer
 
 # ===================================================
-#                  GENERATE CONFIG
+#                  URL Finder
 # ===================================================
 
-def get_ui_port(container, name: str) -> str:
+def check_ui_ports(ports, timeout = 1) -> List[Tuple[str, int]]:
+    """receive a list of ports and checks which ones are UI port candidates"""
+    ui_ports = []
+    for port in ports:
+        url = f"http://{HOSTNAME}:{port}"
+        try:
+            response = requests.head(
+                url, timeout=timeout, allow_redirects=True, verify=False
+            )
+            if response.status_code < 500:
+                ui_ports.append((url, port))
+                break
+        except requests.RequestException as e:
+            continue
+    return ui_ports
+
+def get_local_url(container, name:str ) -> Tuple[str, int]:
     unique_ports = set()
 
     for _, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
@@ -297,15 +297,32 @@ def get_ui_port(container, name: str) -> str:
             for mapping in host_mappings:
                 unique_ports.add(mapping['HostPort'])
 
-    if len(unique_ports) == 0:
-        logger.error(f"No port found for {name}\nDisanbiguation needed with com.plato.ui-port")
+    len_unique_ports = len(unique_ports)
+
+    if len_unique_ports == 0:
+        logger.error(f"No port found for {name}\nPort must be provided with com.plato.ui-port")
         exit(1)
 
-    if len(unique_ports) > 1:
-        logger.error(f"More than one port found for {name}\nDisanbiguation needed with com.plato.ui-port")
-        exit(1)
+    elif len_unique_ports == 1:
+        port = next(iter(unique_ports))
+        return f"http://{HOSTNAME}:{port}", port
 
-    return next(iter(unique_ports))
+    else:
+        candidate_ui_ports = check_ui_ports(unique_ports)
+
+        if len(candidate_ui_ports) == 1:
+            return candidate_ui_ports[0]
+        else:
+            logger.error(f"""More than one UI port found for {name}
+Found {candidate_ui_ports}
+Disanbiguation needed with com.plato.ui-port""")
+            exit(1)
+
+
+# ===================================================
+#                  GENERATE CONFIG
+# ===================================================
+
 
 
 def generate_homer_config():
@@ -330,23 +347,26 @@ def generate_homer_config():
 
         container_name = container.name.lower()
 
-        name     = labels.get("com.plato.name", container_name.title())
-        url      = labels.get("com.plato.url")
-        ui_port  = labels.get("com.plato.ui-port")
+        name        = labels.get("com.plato.name", container_name.title())
+        url         = labels.get("com.plato.url")
+        ui_port     = labels.get("com.plato.ui-port")
+
+        logger.debug(f"> Processing container {name}")
 
         if not url:
-            if not ui_port:
-                ui_port = get_ui_port(container, name)
-
             if ui_port:
                 url = [f"http://{HOSTNAME}:{ui_port}"]
+            else:
+                url, ui_port = get_local_url(container, name)
+
             if nginx_url_pairs:
-                url = nginx_url_pairs.get(ui_port, url)
+                external_urls = nginx_url_pairs.get(ui_port)
+                if external_urls:
+                    url = external_urls[0]
 
         if not url:
             logger.error(f"Could not create URL for {name}")
             exit(1)
-
 
         try:
             importance = float(labels.get("com.plato.importance", 0))
@@ -355,14 +375,18 @@ def generate_homer_config():
             exit(1)
 
         result = {
-            "name"       : name,
-            "url"        : url[0],
-            "importance" : importance,
-            "subtitle"   : labels.get("com.plato.subtitle"),
-            "tag"        : labels.get("com.plato.tag"),
-            "tagstyle"   : labels.get("com.plato.tagstyle"),
-            "keywords"   : labels.get("com.plato.keywords"),
-            "icon"       : labels.get("com.plato.icon")
+            k: v
+            for k, v in {
+                "name"       : name,
+                "url"        : url,
+                "importance" : importance,
+                "subtitle"   : labels.get("com.plato.subtitle"),
+                "tag"        : labels.get("com.plato.tag"),
+                "tagstyle"   : labels.get("com.plato.tagstyle"),
+                "keywords"   : labels.get("com.plato.keywords"),
+                "icon"       : labels.get("com.plato.icon")
+            }.items()
+            if v is not None
         }
 
         custom_logo = labels.get("com.plato.custom-logo")
@@ -421,6 +445,35 @@ def generate_homer_config():
         yaml.dump(configuration, f, default_flow_style=False, sort_keys=False)
 
 if __name__ == "__main__":
+    logger.info("""
+      _,--------._
+      `:._______,:)
+        \\..::ooOo/
+    ___  )::ooOo(  ___     ██████╗ ██╗      █████╗ ████████╗ ██████╗
+   /,-.`/..::ooOo.',-.\\    ██╔══██╗██║     ██╔══██╗╚══██╔══╝██╔═══██╗
+  ((  ,'..::ooOoOOb.  ))   ██████╔╝██║     ███████║   ██║   ██║   ██║
+   \\`/ . ..::ooOoOO8'/     ██╔═══╝ ██║     ██╔══██║   ██║   ██║   ██║
+    Y . ..::ooOoOO888b.    ██║     ███████╗██║  ██║   ██║   ╚██████╔╝
+   (   . ..::ooOoOO888b    ╚═╝     ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝
+    \\ . ..::ooOoOO888F
+     `.. ..::ooOoOOP'
+       `._..ooOO8P'
+         `------'
+""")
+    # Validate initial config
+    if not HOSTNAME:
+        logger.error("HOSTNAME must be provided")
+        exit(1)
+
+    if CATEGORY_ICONS:
+        CATEGORY_ICONS_DICT = dict(
+            (k.strip(), v.strip())
+            for k, v in (item.split("=", 1) for item in CATEGORY_ICONS.split(",") if "=" in item)
+        )
+    else:
+        logger.warning("CATEGORY_ICONS not provided. Column order will be random")
+
+    write_manifest()
 
     start_nginx_watcher()
 
@@ -432,6 +485,6 @@ if __name__ == "__main__":
         if action.startswith("exec_"):
             continue
 
-        logger.debug("Container event:", event["Action"], "on", event["Actor"]["Attributes"].get("name"))
+        logger.debug(f"Container event: {event["Action"]} on {event["Actor"]["Attributes"].get("name")}")
 
         generate_homer_config()
