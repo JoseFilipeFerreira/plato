@@ -1,6 +1,7 @@
 from docker.errors import NotFound
-from typing import Tuple, List
 from pathlib import Path
+from typing import Tuple, List
+from urllib.parse import urljoin
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 import crossplane
@@ -312,6 +313,9 @@ def get_local_url(container, name:str ) -> Tuple[str, int]:
 
         if len(candidate_ui_ports) == 1:
             return candidate_ui_ports[0]
+        elif len(candidate_ui_ports) == 0:
+            logger.error(f"No UI port found for {name}\nPort must be provided with com.plato.ui-port")
+            exit(1)
         else:
             logger.error(f"""More than one UI port found for {name}
 Found {candidate_ui_ports}
@@ -349,15 +353,19 @@ def generate_homer_config():
 
         name        = labels.get("com.plato.name", container_name.title())
         url         = labels.get("com.plato.url")
+        endpoint    = labels.get("com.plato.endpoint")
         ui_port     = labels.get("com.plato.ui-port")
 
         logger.debug(f"> Processing container {name}")
 
         if not url:
             if ui_port:
-                url = [f"http://{HOSTNAME}:{ui_port}"]
+                url = f"http://{HOSTNAME}:{ui_port}"
             else:
                 url, ui_port = get_local_url(container, name)
+
+            if endpoint:
+                url = urljoin(url.rstrip('/') + '/', endpoint)
 
             if nginx_url_pairs:
                 external_urls = nginx_url_pairs.get(ui_port)

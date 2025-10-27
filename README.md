@@ -33,6 +33,7 @@ labels:
   com.plato.keywords      # Optional;
   com.plato.ui-port       # Optional; disambiguates multiple ports or host-mounted containers
   com.plato.url           # Optional; main service URL; overrides everything
+  com.plato.endpoint      # Optional; main service endpoint; appends to the generated url
   com.plato.importance    # Optional; Defaults to 0; higher numbers appear first
 ```
 ---
