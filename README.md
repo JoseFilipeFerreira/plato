@@ -34,6 +34,7 @@ labels:
   com.plato.ui-port       # Optional; disambiguates multiple ports or host-mounted containers
   com.plato.url           # Optional; main service URL; overrides everything
   com.plato.endpoint      # Optional; main service endpoint; appends to the generated url
+  com.plato.force-https   # Optional; force https on the URL
   com.plato.importance    # Optional; Defaults to 0; higher numbers appear first
 ```
 ---
@@ -53,6 +54,7 @@ labels:
 |-----------------------------------|-----------------|-------------|
 | CATEGORY_ICONS                    | ""              | Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt` |
 | AUTOMATIC_ICONS                   | True                    | If you want to auto search icons based on container name |
+| LOG_LEVEL                         | INFO                    | |
 
 ### Homer Specific
 

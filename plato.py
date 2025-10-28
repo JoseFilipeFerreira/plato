@@ -1,19 +1,20 @@
-from docker.errors import NotFound
-from pathlib import Path
-from typing import Tuple, List
-from urllib.parse import urljoin
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
-import crossplane
-import docker
 import json
 import logging
 import os
 import re
-import requests
 import threading
 import time
+from pathlib import Path
+from typing import Dict, Tuple, List, Generator, Set
+from urllib.parse import urljoin
+
+import crossplane
+import docker
+from docker.errors import NotFound
+from docker.models.containers import Container
 import yaml
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 client = docker.from_env()
 
@@ -23,10 +24,10 @@ client = docker.from_env()
 
 LEVEL_COLORS = {
     'DEBUG':    "\033[36mDEBUG", # Cyan
-    'INFO':     "\033[34mINFO", # Blue
-    'WARNING':  "\033[33mWARN", # Orange
+    'INFO':     "\033[34mINFO",  # Blue
+    'WARNING':  "\033[33mWARN",  # Orange
     'ERROR':    "\033[31mERROR", # Red
-    'CRITICAL': "\033[41mCRIT", # Extra Red
+    'CRITICAL': "\033[41mCRIT",  # Extra Red
 }
 RESET = "\033[0m"
 
@@ -69,7 +70,8 @@ HOSTNAME = os.getenv("HOSTNAME")
 
 AUTOMATIC_ICONS = os.getenv("AUTOMATIC_ICONS", "True").lower() in ("1", "true", "yes")
 CATEGORY_ICONS  = os.getenv("CATEGORY_ICONS")
-CATEGORY_ICONS_DICT = {}
+
+CATEGORY_ICONS_DICT: Dict[str, str] = {}
 
 
 # Create base config from env
@@ -147,7 +149,7 @@ def write_manifest():
 #                  CONTAINER UTILS
 # ===================================================
 
-def safe_list_containers(all=True):
+def safe_list_containers(all=True) -> Generator[Container, None, None]:
     for c in client.api.containers(all=all):
         cid = c["Id"]
         try:
@@ -160,18 +162,18 @@ def safe_list_containers(all=True):
 #                  NGINX PARSING
 # ===================================================
 
-_nginx_config = None
+_nginx_config = {}
 _lock = threading.Lock()
 _nginx_cooldown = 5
 _latest_nginx_reload = 0
 
-def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
+def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH) -> Dict[int, List[str]]:
     logger.info("Parsing Nginx Config")
 
     valid_hostname = re.compile(r'^[a-zA-Z0-9.-]+$')
 
     parsed = crossplane.parse(nginx_conf)
-    port_url_map = {}
+    port_url_map: Dict[int, Set[str]] = {}
 
     for config in parsed.get("config", []):
         for directive in config.get("parsed", []):
@@ -193,7 +195,7 @@ def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
                                 server_names.append(name)
 
                 if not server_names:
-                    return  # skip blocks without valid hostnames
+                    continue  # skip blocks without valid hostnames
 
                 # Only process location blocks
                 for directive in server_block.get("block", []):
@@ -211,20 +213,20 @@ def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH):
                                             url = url.rstrip("=")
                                             if url == f"{scheme}://{name}":
                                                 url = url.rstrip("/")
-                                            port_url_map.setdefault(internal_port, set()).add(url)
+                                            port_url_map.setdefault(int(internal_port), set()).add(url)
 
     # Convert sets to sorted lists
-    port_url_map = {port: sorted(urls) for port, urls in port_url_map.items()}
+    ret = {port: sorted(urls) for port, urls in port_url_map.items()}
 
-    if port_url_map:
+    if ret:
         log_url_pairs = ''
-        for port in port_url_map:
-            log_url_pairs += f"  {port} -> {port_url_map[port]}\n"
+        for port in ret:
+            log_url_pairs += f"  {port} -> {ret[port]}\n"
         logger.debug(log_url_pairs)
     else:
         logger.warning("Nginx config not found")
 
-    return port_url_map
+    return ret
 
 
 def _reload_nginx_config():
@@ -239,7 +241,7 @@ def _reload_nginx_config():
     except Exception as e:
         logger.error(f"Failed to reload nginx config: {e}")
 
-def get_nginx_config():
+def get_nginx_config() -> Dict[int, List[str]]:
     with _lock:
         return _nginx_config
 
@@ -262,9 +264,9 @@ def start_nginx_watcher():
     event_handler = NginxConfigWatcher()
     observer = Observer()
     if NGINX_CONFIG_PATH.parent.exists():
-        observer.schedule(event_handler, NGINX_CONFIG_PATH.parent, recursive=False)
+        observer.schedule(event_handler, str(NGINX_CONFIG_PATH.parent), recursive=False)
     if SITES_ENABLED_DIR.exists():
-        observer.schedule(event_handler, SITES_ENABLED_DIR, recursive=True)
+        observer.schedule(event_handler, str(SITES_ENABLED_DIR), recursive=True)
 
     observer.daemon = True
     observer.start()
@@ -274,60 +276,83 @@ def start_nginx_watcher():
 #                  URL Finder
 # ===================================================
 
-def check_ui_ports(ports, timeout = 1) -> List[Tuple[str, int]]:
-    """receive a list of ports and checks which ones are UI port candidates"""
-    ui_ports = []
-    for port in ports:
-        url = f"http://{HOSTNAME}:{port}"
-        try:
-            response = requests.head(
-                url, timeout=timeout, allow_redirects=True, verify=False
-            )
-            if response.status_code < 500:
-                ui_ports.append((url, port))
-                break
-        except requests.RequestException as e:
-            continue
-    return ui_ports
+COMMON_HTTP_PORTS = {
+    80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
+    3000, 3001,
+    5000, 5050, 5080,
+    7000, 7001,
+    8000, 8001, 8080, 8081, 8090, 8096, 8181, 8200, 8888, 8989,
+    9000, 9090, 9117, 9999
+}
+
+COMMON_HTTPS_PORTS = {
+    443, 444, 8443, 9443, 10443, 12443, 14443
+}
+
+KNOWN_PORTS = {
+    "jellyfin": 8096,
+    "qbittorrent": 8080,
+    "home-assistant": 8123,
+}
 
 def get_local_url(container, name:str ) -> Tuple[str, int]:
+
+    # Find used TCP ports
     unique_ports = set()
-
-    for _, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
-        if host_mappings:
+    for port_proto, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
+        internal_port, proto = port_proto.split('/')
+        if proto == "tcp" and host_mappings:
             for mapping in host_mappings:
-                unique_ports.add(mapping['HostPort'])
+                unique_ports.add((int(internal_port), int(mapping['HostPort'])))
 
-    len_unique_ports = len(unique_ports)
+    logger.debug(f"Ports found: {unique_ports}")
 
-    if len_unique_ports == 0:
-        logger.error(f"No port found for {name}\nPort must be provided with com.plato.ui-port")
+    if len(unique_ports) == 1:
+        # Use the only exposed port as UI port
+        internal_port, external_port = next(iter(unique_ports))
+
+        protocol = "http"
+        if internal_port in COMMON_HTTPS_PORTS:
+            protocol = "https"
+
+        return f"{protocol}://{HOSTNAME}:{external_port}", external_port
+
+    elif len(unique_ports) > 1:
+        # Check if any of the found ports are common HTTP/HTTPS port
+        for internal_port, external_port in unique_ports:
+
+
+            protocol = None
+
+            if internal_port in COMMON_HTTP_PORTS:
+                protocol = "http"
+            elif internal_port in COMMON_HTTPS_PORTS:
+                protocol = "https"
+
+            if protocol is not None:
+                logger.debug(f"Found common {protocol} port {internal_port} -> {external_port}")
+                return f"{protocol}://{HOSTNAME}:{external_port}", external_port
+
+        logger.error(f"More than one UI port found for {name}\nDisanbiguation needed with com.plato.ui-port")
         exit(1)
 
-    elif len_unique_ports == 1:
-        port = next(iter(unique_ports))
-        return f"http://{HOSTNAME}:{port}", port
 
     else:
-        candidate_ui_ports = check_ui_ports(unique_ports)
+        # If no port is exposed, search known ports
+        image_name = container.image.tags[0] if container.image.tags else ""
+        container_name = container.name.lower()
 
-        if len(candidate_ui_ports) == 1:
-            return candidate_ui_ports[0]
-        elif len(candidate_ui_ports) == 0:
-            logger.error(f"No UI port found for {name}\nPort must be provided with com.plato.ui-port")
-            exit(1)
-        else:
-            logger.error(f"""More than one UI port found for {name}
-Found {candidate_ui_ports}
-Disanbiguation needed with com.plato.ui-port""")
-            exit(1)
+        for service, port in KNOWN_PORTS.items():
+            if service in image_name or service in container_name:
+                logger.debug(f"Found known port for service {service}: {port}")
+                return f"http://{HOSTNAME}:{port}", port
 
+        logger.error(f"No port found for {name}\nPort must be provided with com.plato.ui-port")
+        exit(1)
 
 # ===================================================
 #                  GENERATE CONFIG
 # ===================================================
-
-
 
 def generate_homer_config():
     logger.info("🔧 Generating Homer dashboard configuration...")
@@ -356,6 +381,8 @@ def generate_homer_config():
         endpoint    = labels.get("com.plato.endpoint")
         ui_port     = labels.get("com.plato.ui-port")
 
+        force_https = labels.get("com.plato.force-https", "false").lower() in ("1", "true", "yes")
+
         logger.debug(f"> Processing container {name}")
 
         if not url:
@@ -371,6 +398,12 @@ def generate_homer_config():
                 external_urls = nginx_url_pairs.get(ui_port)
                 if external_urls:
                     url = external_urls[0]
+                    logger.debug(f"Found external url: {url}")
+
+        if url and force_https:
+            if "https" not in url:
+                logger.debug(f"Force HTTPS on {url}")
+                url = url.replace("http", "https")
 
         if not url:
             logger.error(f"Could not create URL for {name}")
@@ -416,10 +449,10 @@ def generate_homer_config():
 
             if os.path.exists(custom_icon_path):
                 result['logo'] = str(Path(*custom_icon_path.parts[2:]))
-                logger.debug(f"Found Custom icon for {name}: {search_icon}")
+                logger.debug(f"Found Custom icon: {search_icon}")
             elif os.path.exists(selfhst_icon_path):
                 result['logo'] = str(Path(*selfhst_icon_path.parts[2:]))
-                logger.debug(f"Found selfh.st icon for {name}: {search_icon}.png")
+                logger.debug(f"Found selfh.st icon: {search_icon}.png")
             else:
                 logger.warning(f"Icon not found for {name}: {search_icon}.png")
                 if selfhst_icon:
