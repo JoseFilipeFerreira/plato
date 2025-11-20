@@ -376,6 +376,7 @@ def generate_homer_config():
 
         container_name = container.name.lower()
 
+
         name        = labels.get("com.plato.name", container_name.title())
         url         = labels.get("com.plato.url")
         endpoint    = labels.get("com.plato.endpoint")
@@ -384,6 +385,12 @@ def generate_homer_config():
         force_https = labels.get("com.plato.force-https", "false").lower() in ("1", "true", "yes")
 
         logger.debug(f"> Processing container {name}")
+
+        # caddy-docker-proxy support
+        caddy_url = labels.get("caddy")
+        if caddy_url:
+            logger.debug(f"Caddy found: {caddy_url}")
+            url = "https://" + caddy_url
 
         if not url:
             if ui_port:
