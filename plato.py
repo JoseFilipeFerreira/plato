@@ -293,6 +293,7 @@ KNOWN_PORTS = {
     "jellyfin": 8096,
     "qbittorrent": 8080,
     "home-assistant": 8123,
+    "esphome": 6052
 }
 
 def get_local_url(container, name:str ) -> Tuple[str, int]:
