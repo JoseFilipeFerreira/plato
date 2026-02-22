@@ -1,41 +1,41 @@
 # 🏺 Plato – Homer Dashboard Generator
 
-Plato replaces your current Homer dashboard. To generate the config you just
+Plato replaces your current Homer dashboard. To dinamically generate a dashboard you just
 need to add labels to the docker services you want to display and plato does the
-rest. It also crossreferences with nginx to get external url and generates a
-Homer Dashboard dinamically as containers are started and stoped.
+rest. It also crossreferences with nginx and caddy-docker-proxy to get the
+external url of a given service.
 
 Includes automatic selfh.st icons for ease of use.
 
 ## 🏷 Docker Labels
 
 The claim to fame of this software is simple. The only label you **need** to add to
-each docker container on the page is `com.plato.category`. Every other tag is optional.
+each docker container on the page is `plato.category`. Every other tag is optional.
 
 - If the container only has one exposed port it will be considered the UI port.
-- If not, you have to disambiguate using `com.plato.ui-port`
+- If not, you have to disambiguate using `plato.ui-port`
 - This port is then used to search your NGINX config (if provided) for the
     external url of the service.
-- Plato uses the container name to search the selfh.st icon list. To override this, use `com.plato.selfhst-icon`.
+- Plato uses the container name to search the selfh.st icon list. To override this, use `plato.selfhst-icon`.
 
 Full list of labels is as follow:
 
 ```yaml
 labels:
-  com.plato.category      # (Mandatory) Category name; must match CATEGORY_ICONS
-  com.plato.name          # Optional; Service name; defaults to container name if not provided
-  com.plato.selfhst-icon  # Optional; Overrides container name for selfh.st icons
-  com.plato.custom-logo   # Optional; Logo URL/path; overrides everything
-  com.plato.icon          # Optional;
-  com.plato.subtitle      # Optional;
-  com.plato.tag           # Optional;
-  com.plato.tagstyle      # Optional;
-  com.plato.keywords      # Optional;
-  com.plato.ui-port       # Optional; disambiguates multiple ports or host-mounted containers
-  com.plato.url           # Optional; main service URL; overrides everything
-  com.plato.endpoint      # Optional; main service endpoint; appends to the generated url
-  com.plato.force-https   # Optional; force https on the URL
-  com.plato.importance    # Optional; Defaults to 0; higher numbers appear first
+  plato.category      # (Mandatory) Category name; must match CATEGORY_ICONS
+  plato.name          # Optional; Service name; defaults to container name if not provided
+  plato.selfhst-icon  # Optional; Overrides container name for selfh.st icons
+  plato.custom-logo   # Optional; Logo URL/path; overrides everything
+  plato.icon          # Optional;
+  plato.subtitle      # Optional;
+  plato.tag           # Optional;
+  plato.tagstyle      # Optional;
+  plato.keywords      # Optional;
+  plato.ui-port       # Optional; disambiguates multiple ports or host-mounted containers
+  plato.url           # Optional; main service URL; overrides everything
+  plato.endpoint      # Optional; main service endpoint; appends to the generated url
+  plato.force-https   # Optional; force https on the URL
+  plato.importance    # Optional; Defaults to 0; higher numbers appear first
 ```
 ---
 

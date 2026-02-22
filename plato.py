@@ -334,7 +334,7 @@ def get_local_url(container, name:str ) -> Tuple[str, int]:
                 logger.debug(f"Found common {protocol} port {internal_port} -> {external_port}")
                 return f"{protocol}://{HOSTNAME}:{external_port}", external_port
 
-        logger.error(f"More than one UI port found for {name}\nDisanbiguation needed with com.plato.ui-port")
+        logger.error(f"More than one UI port found for {name}\nDisanbiguation needed with plato.ui-port")
         exit(1)
 
 
@@ -348,7 +348,7 @@ def get_local_url(container, name:str ) -> Tuple[str, int]:
                 logger.debug(f"Found known port for service {service}: {port}")
                 return f"http://{HOSTNAME}:{port}", port
 
-        logger.error(f"No port found for {name}\nPort must be provided with com.plato.ui-port")
+        logger.error(f"No port found for {name}\nPort must be provided with plato.ui-port")
         exit(1)
 
 # ===================================================
@@ -370,7 +370,7 @@ def generate_homer_config():
 
         labels = container.labels
 
-        category = labels.get("com.plato.category")
+        category = labels.get("plato.category")
 
         if not category:
             continue
@@ -378,12 +378,12 @@ def generate_homer_config():
         container_name = container.name.lower()
 
 
-        name        = labels.get("com.plato.name", container_name.title())
-        url         = labels.get("com.plato.url")
-        endpoint    = labels.get("com.plato.endpoint")
-        ui_port     = labels.get("com.plato.ui-port")
+        name        = labels.get("plato.name", container_name.title())
+        url         = labels.get("plato.url")
+        endpoint    = labels.get("plato.endpoint")
+        ui_port     = labels.get("plato.ui-port")
 
-        force_https = labels.get("com.plato.force-https", "false").lower() in ("1", "true", "yes")
+        force_https = labels.get("plato.force-https", "false").lower() in ("1", "true", "yes")
 
         logger.debug(f"> Processing container {name}")
 
@@ -418,9 +418,9 @@ def generate_homer_config():
             exit(1)
 
         try:
-            importance = float(labels.get("com.plato.importance", 0))
+            importance = float(labels.get("plato.importance", 0))
         except (TypeError, ValueError):
-            logger.error(f"com.plato.importance must be a float value for {name}")
+            logger.error(f"plato.importance must be a float value for {name}")
             exit(1)
 
         result = {
@@ -429,16 +429,16 @@ def generate_homer_config():
                 "name"       : name,
                 "url"        : url,
                 "importance" : importance,
-                "subtitle"   : labels.get("com.plato.subtitle"),
-                "tag"        : labels.get("com.plato.tag"),
-                "tagstyle"   : labels.get("com.plato.tagstyle"),
-                "keywords"   : labels.get("com.plato.keywords"),
-                "icon"       : labels.get("com.plato.icon")
+                "subtitle"   : labels.get("plato.subtitle"),
+                "tag"        : labels.get("plato.tag"),
+                "tagstyle"   : labels.get("plato.tagstyle"),
+                "keywords"   : labels.get("plato.keywords"),
+                "icon"       : labels.get("plato.icon")
             }.items()
             if v is not None
         }
 
-        custom_logo = labels.get("com.plato.custom-logo")
+        custom_logo = labels.get("plato.custom-logo")
 
         if custom_logo:
             result['logo'] = custom_logo
@@ -446,7 +446,7 @@ def generate_homer_config():
         elif AUTOMATIC_ICONS:
             search_icon = container_name
 
-            selfhst_icon = labels.get("com.plato.selfhst-icon")
+            selfhst_icon = labels.get("plato.selfhst-icon")
 
             if selfhst_icon:
                 search_icon = selfhst_icon
@@ -464,7 +464,7 @@ def generate_homer_config():
             else:
                 logger.warning(f"Icon not found for {name}: {search_icon}.png")
                 if selfhst_icon:
-                    logger.error("Provided logo is invalid: com.plato.selfhst-icon")
+                    logger.error("Provided logo is invalid: plato.selfhst-icon")
                     exit(1)
 
         categories.setdefault(category, []).append(result)
