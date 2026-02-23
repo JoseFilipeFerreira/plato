@@ -75,7 +75,7 @@ CATEGORY_ICONS_DICT: Dict[str, str] = {}
 
 # Load Base theme
 THEMES_PATH = Path("/www/themes")
-THEME = os.getenv("THEME", "default")
+THEME = os.getenv("THEME", "default").lower()
 THEME_PATH = THEMES_PATH / Path(f"{THEME}.json")
 if not THEME_PATH.exists():
     logger.error(f"Theme {THEME} does not exist")
