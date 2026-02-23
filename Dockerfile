@@ -34,6 +34,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Overwrite Homer files
 COPY lighttpd.conf /lighttpd.conf
 
+# Add themes
+COPY themes/ /www/themes/
+
 # Copy new scripts
 COPY plato_entrypoint.sh /usr/local/bin/plato_entrypoint.sh
 RUN chmod +x /usr/local/bin/plato_entrypoint.sh

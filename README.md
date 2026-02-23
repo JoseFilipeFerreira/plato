@@ -22,7 +22,7 @@ Full list of labels is as follow:
 
 ```yaml
 labels:
-  plato.category      # (Mandatory) Category name; must match CATEGORY_ICONS
+  plato.category      # (Mandatory) Category name
   plato.name          # Optional; Service name; defaults to container name if not provided
   plato.selfhst-icon  # Optional; Overrides container name for selfh.st icons
   plato.custom-logo   # Optional; Logo URL/path; overrides everything
@@ -53,48 +53,49 @@ labels:
 | Variable                          | Default         | Description |
 |-----------------------------------|-----------------|-------------|
 | CATEGORY_ICONS                    | ""              | Comma-separated mapping of categories to FontAwesome icons. Example: `Botnet=fas fa-cloud, Media=fas fa-photo-video, Download=fas fa-download, Utilities=fas fa-toolbox, Infrastructure=fas fa-tasks-alt` |
+| THEME                             | "default"       | Base theme for the dashboard. See themes inside themes folder |
 | AUTOMATIC_ICONS                   | True                    | If you want to auto search icons based on container name |
 | LOG_LEVEL                         | INFO                    | |
 
 ### Homer Specific
 
-| Variable                          | Default                |
-|-----------------------------------|------------------------|
-| TITLE                             | Demo dashboard         |
-| SUBTITLE                          | Plato                  |
-| LOGO                              | logo.png               |
-| COLUMNS                           | auto                   |
-| HEADER                            | true                   |
-| FOOTER                            | false                  |
-| COLORS_LIGHT_HIGHLIGHT-PRIMARY    | #3367d6                |
-| COLORS_LIGHT_HIGHLIGHT-SECONDARY  | #4285f4                |
-| COLORS_LIGHT_HIGHLIGHT-HOVER      | #5a95f5                |
-| COLORS_LIGHT_BACKGROUND           | #f5f5f5                |
-| COLORS_LIGHT_CARD-BACKGROUND      | #ffffff                |
-| COLORS_LIGHT_TEXT                 | #363636                |
-| COLORS_LIGHT_TEXT-HEADER          | #ffffff                |
-| COLORS_LIGHT_TEXT-TITLE           | #303030                |
-| COLORS_LIGHT_TEXT-SUBTITLE        | #424242                |
-| COLORS_LIGHT_CARD-SHADOW          | rgba(0, 0, 0, 0.1)     |
-| COLORS_LIGHT_LINK                 | #3273dc                |
-| COLORS_LIGHT_LINK-HOVER           | #363636                |
-| COLORS_DARK_HIGHLIGHT-PRIMARY     | #3367d6                |
-| COLORS_DARK_HIGHLIGHT-SECONDARY   | #4285f4                |
-| COLORS_DARK_HIGHLIGHT-HOVER       | #5a95f5                |
-| COLORS_DARK_BACKGROUND            | #131313                |
-| COLORS_DARK_CARD-BACKGROUND       | #2b2b2b                |
-| COLORS_DARK_TEXT                  | #eaeaea                |
-| COLORS_DARK_TEXT-HEADER           | #ffffff                |
-| COLORS_DARK_TEXT-TITLE            | #fafafa                |
-| COLORS_DARK_TEXT-SUBTITLE         | #f5f5f5                |
-| COLORS_DARK_CARD-SHADOW           | rgba(0, 0, 0, 0.4)     |
-| COLORS_DARK_LINK                  | #3273dc                |
-| COLORS_DARK_LINK-HOVER            | #ffdd57                |
-| PWA_NAME                          | Plato Dashboard        |
-| PWA_SHORT_NAME                    | Plato                  |
-| PWA_DESCRIPTION                   | Plato Server Dashboard |
-| PWA_BACKGROUND_COLOR              | #ffffff                |
-| PWA_THEME_COLOR                   | #3367D6"               |
+| Variable                   | Default                |
+|----------------------------|------------------------|
+| TITLE                      | Demo dashboard         |
+| SUBTITLE                   | Plato                  |
+| LOGO                       | logo.png               |
+| COLUMNS                    | auto                   |
+| HEADER                     | true                   |
+| FOOTER                     | false                  |
+| LIGHT_HIGHLIGHT-PRIMARY    | `based on THEME`       |
+| LIGHT_HIGHLIGHT-SECONDARY  | `based on THEME`       |
+| LIGHT_HIGHLIGHT-HOVER      | `based on THEME`       |
+| LIGHT_BACKGROUND           | `based on THEME`       |
+| LIGHT_CARD-BACKGROUND      | `based on THEME`       |
+| LIGHT_TEXT                 | `based on THEME`       |
+| LIGHT_TEXT-HEADER          | `based on THEME`       |
+| LIGHT_TEXT-TITLE           | `based on THEME`       |
+| LIGHT_TEXT-SUBTITLE        | `based on THEME`       |
+| LIGHT_CARD-SHADOW          | `based on THEME`       |
+| LIGHT_LINK                 | `based on THEME`       |
+| LIGHT_LINK-HOVER           | `based on THEME`       |
+| DARK_HIGHLIGHT-PRIMARY     | `based on THEME`       |
+| DARK_HIGHLIGHT-SECONDARY   | `based on THEME`       |
+| DARK_HIGHLIGHT-HOVER       | `based on THEME`       |
+| DARK_BACKGROUND            | `based on THEME`       |
+| DARK_CARD-BACKGROUND       | `based on THEME`       |
+| DARK_TEXT                  | `based on THEME`       |
+| DARK_TEXT-HEADER           | `based on THEME`       |
+| DARK_TEXT-TITLE            | `based on THEME`       |
+| DARK_TEXT-SUBTITLE         | `based on THEME`       |
+| DARK_CARD-SHADOW           | `based on THEME`       |
+| DARK_LINK                  | `based on THEME`       |
+| DARK_LINK-HOVER            | `based on THEME`       |
+| PWA_NAME                   | Plato Dashboard        |
+| PWA_SHORT_NAME             | Plato                  |
+| PWA_DESCRIPTION            | Plato Server Dashboard |
+| PWA_BACKGROUND_COLOR       | #ffffff                |
+| PWA_THEME_COLOR            | #3367D6"               |
 
 ---
 

@@ -1,0 +1,28 @@
+{
+  "light": {
+    "highlight-hover": "#938AA9",
+    "background": "#DCD7BA",
+    "card-background": "#C8C093",
+    "text": "#16161D",
+    "text-header": "#16161D",
+    "text-title": "#1F1F28",
+    "text-subtitle": "#2A2A37",
+    "card-shadow": "rgba(0, 0, 0, 0.2)",
+    "link": "#3273DC",
+    "link-hover": "#FFDD57"
+  },
+  "dark": {
+    "highlight-primary": "#957fb8",
+    "highlight-secondary": "#957fb8",
+    "highlight-hover": "#938AA9",
+    "background": "#1F1F28",
+    "card-background": "#2A2A37",
+    "text": "#DCD7BA",
+    "text-header": "#DCD7BA",
+    "text-title": "#DCD7BA",
+    "text-subtitle": "#C8C093",
+    "card-shadow": "rgba(0, 0, 0, 0.5)",
+    "link": "#3273DC",
+    "link-hover": "#FFDD57"
+  }
+}

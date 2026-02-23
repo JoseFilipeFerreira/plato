@@ -73,6 +73,21 @@ CATEGORY_ICONS  = os.getenv("CATEGORY_ICONS")
 
 CATEGORY_ICONS_DICT: Dict[str, str] = {}
 
+# Load Base theme
+THEMES_PATH = Path("/www/themes")
+THEME = os.getenv("THEME", "default")
+THEME_PATH = THEMES_PATH / Path(f"{THEME}.json")
+if not THEME_PATH.exists():
+    logger.error(f"Theme {THEME} does not exist")
+    exit(1)
+
+with open(THEME_PATH, "r") as f:
+    colors = json.load(f)
+
+# Helper to get env or fallback to theme
+def get_color(env_var, theme_section, key):
+    return os.getenv(env_var, colors.get(theme_section, {}).get(key))
+
 
 # Create base config from env
 configuration = {
@@ -83,34 +98,34 @@ configuration = {
     'header':   os.getenv("HEADER", True),
     'footer':   os.getenv("FOOTER", False),
     'theme': "default",
-    'colors': {
-        'light': {
-            'highlight-primary':   os.getenv("COLORS_LIGHT_HIGHLIGHT-PRIMARY",'#3367d6'),
-            'highlight-secondary': os.getenv("COLORS_LIGHT_HIGHLIGHT-SECONDARY", '#4285f4'),
-            'highlight-hover':     os.getenv("COLORS_LIGHT_HIGHLIGHT-HOVER", '#5a95f5'),
-            'background':          os.getenv("COLORS_LIGHT_BACKGROUND", '#f5f5f5'),
-            'card-background':     os.getenv("COLORS_LIGHT_CARD-BACKGROUND", '#ffffff'),
-            'text':                os.getenv("COLORS_LIGHT_TEXT", '#363636'),
-            'text-header':         os.getenv("COLORS_LIGHT_TEXT-HEADER", '#ffffff'),
-            'text-title':          os.getenv("COLORS_LIGHT_TEXT-TITLE", '#303030'),
-            'text-subtitle':       os.getenv("COLORS_LIGHT_TEXT-SUBTITLE", '#424242'),
-            'card-shadow':         os.getenv("COLORS_LIGHT_CARD-SHADOW", 'rgba(0, 0, 0, 0.1)'),
-            'link':                os.getenv("COLORS_LIGHT_LINK", '#3273dc'),
-            'link-hover':          os.getenv("COLORS_LIGHT_LINK-HOVER", '#363636')
+    "colors": {
+        "light": {
+            "highlight-primary":   get_color("LIGHT_HIGHLIGHT-PRIMARY", "light", "highlight-primary"),
+            "highlight-secondary": get_color("LIGHT_HIGHLIGHT-SECONDARY", "light", "highlight-secondary"),
+            "highlight-hover":     get_color("LIGHT_HIGHLIGHT-HOVER", "light", "highlight-hover"),
+            "background":          get_color("LIGHT_BACKGROUND", "light", "background"),
+            "card-background":     get_color("LIGHT_CARD-BACKGROUND", "light", "card-background"),
+            "text":                get_color("LIGHT_TEXT", "light", "text"),
+            "text-header":         get_color("LIGHT_TEXT-HEADER", "light", "text-header"),
+            "text-title":          get_color("LIGHT_TEXT-TITLE", "light", "text-title"),
+            "text-subtitle":       get_color("LIGHT_TEXT-SUBTITLE", "light", "text-subtitle"),
+            "card-shadow":         get_color("LIGHT_CARD-SHADOW", "light", "card-shadow"),
+            "link":                get_color("LIGHT_LINK", "light", "link"),
+            "link-hover":          get_color("LIGHT_LINK-HOVER", "light", "link-hover")
         },
-        'dark': {
-            'highlight-primary':   os.getenv("COLORS_DARK_HIGHLIGHT-PRIMARY", '#3367d6'),
-            'highlight-secondary': os.getenv("COLORS_DARK_HIGHLIGHT-SECONDARY", '#4285f4'),
-            'highlight-hover':     os.getenv("COLORS_DARK_HIGHLIGHT-HOVER", '#5a95f5'),
-            'background':          os.getenv("COLORS_DARK_BACKGROUND", '#131313'),
-            'card-background':     os.getenv("COLORS_DARK_CARD-BACKGROUND", '#2b2b2b'),
-            'text':                os.getenv("COLORS_DARK_TEXT", '#eaeaea'),
-            'text-header':         os.getenv("COLORS_DARK_TEXT-HEADER", '#ffffff'),
-            'text-title':          os.getenv("COLORS_DARK_TEXT-TITLE", '#fafafa'),
-            'text-subtitle':       os.getenv("COLORS_DARK_TEXT-SUBTITLE", '#f5f5f5'),
-            'card-shadow':         os.getenv("COLORS_DARK_CARD-SHADOW", 'rgba(0, 0, 0, 0.4)'),
-            'link':                os.getenv("COLORS_DARK_LINK", '#3273dc'),
-            'link-hover':          os.getenv("COLORS_DARK_LINK-HOVER", '#ffdd57')
+        "dark": {
+            "highlight-primary":   get_color("DARK_HIGHLIGHT-PRIMARY", "dark", "highlight-primary"),
+            "highlight-secondary": get_color("DARK_HIGHLIGHT-SECONDARY", "dark", "highlight-secondary"),
+            "highlight-hover":     get_color("DARK_HIGHLIGHT-HOVER", "dark", "highlight-hover"),
+            "background":          get_color("DARK_BACKGROUND", "dark", "background"),
+            "card-background":     get_color("DARK_CARD-BACKGROUND", "dark", "card-background"),
+            "text":                get_color("DARK_TEXT", "dark", "text"),
+            "text-header":         get_color("DARK_TEXT-HEADER", "dark", "text-header"),
+            "text-title":          get_color("DARK_TEXT-TITLE", "dark", "text-title"),
+            "text-subtitle":       get_color("DARK_TEXT-SUBTITLE", "dark", "text-subtitle"),
+            "card-shadow":         get_color("DARK_CARD-SHADOW", "dark", "card-shadow"),
+            "link":                get_color("DARK_LINK", "dark", "link"),
+            "link-hover":          get_color("DARK_LINK-HOVER", "dark", "link-hover")
         }
     },
     'services': []
