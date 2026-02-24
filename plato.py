@@ -433,9 +433,9 @@ def generate_homer_config():
             exit(1)
 
         try:
-            importance = float(labels.get("plato.importance", 0))
+            position = int(labels.get("plato.position", 99))
         except (TypeError, ValueError):
-            logger.error(f"plato.importance must be a float value for {name}")
+            logger.error(f"plato.position must be an integer value for {name}")
             exit(1)
 
         result = {
@@ -443,7 +443,7 @@ def generate_homer_config():
             for k, v in {
                 "name"       : name,
                 "url"        : url,
-                "importance" : importance,
+                "position" : position,
                 "subtitle"   : labels.get("plato.subtitle"),
                 "tag"        : labels.get("plato.tag"),
                 "tagstyle"   : labels.get("plato.tagstyle"),
@@ -486,7 +486,7 @@ def generate_homer_config():
 
     # Sort each column
     for category in categories:
-        categories[category].sort(key=lambda x: x["importance"], reverse=True)
+        categories[category].sort(key=lambda x: x["position"])
 
 
     configuration['services'] = sorted(

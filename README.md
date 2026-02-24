@@ -35,7 +35,7 @@ labels:
   plato.url           # Optional; main service URL; overrides everything
   plato.endpoint      # Optional; main service endpoint; appends to the generated url
   plato.force-https   # Optional; force https on the URL
-  plato.importance    # Optional; Defaults to 0; higher numbers appear first
+  plato.position      # Optional; dictates the position of the Service inside the Category
 ```
 ---
 
