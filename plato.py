@@ -486,7 +486,7 @@ def generate_homer_config():
 
     # Sort each column
     for category in categories:
-        categories[category].sort(key=lambda x: x["position"])
+        categories[category].sort(key=lambda x: (x["position"], x["name"]))
 
 
     configuration['services'] = sorted(
