@@ -287,6 +287,7 @@ def generate_homer_config():
 
             if endpoint:
                 url = urljoin(url.rstrip('/') + '/', endpoint)
+                logger.debug(f"Append {endpoint} to url: {url}")
 
         if url and force_https:
             if "https" not in url:

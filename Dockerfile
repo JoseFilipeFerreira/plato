@@ -2,7 +2,7 @@
 # Stage 1 — Build environment
 # ──────────────────────────────
 
-FROM alpine:3.20 AS builder
+FROM alpine:3 AS builder
 
 RUN apk add --no-cache python3 py3-pip git
 
