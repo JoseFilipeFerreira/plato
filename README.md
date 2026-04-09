@@ -2,8 +2,8 @@
 
 Plato replaces your current Homer dashboard. To dinamically generate a dashboard you just
 need to add labels to the docker services you want to display and plato does the
-rest. It also crossreferences with nginx and caddy-docker-proxy to get the
-external url of a given service.
+rest. It also crossreferences with caddy-docker-proxy to get the external url of
+a given service.
 
 Includes automatic selfh.st icons for ease of use.
 
@@ -14,8 +14,8 @@ each docker container on the page is `plato.category`. Every other tag is option
 
 - If the container only has one exposed port it will be considered the UI port.
 - If not, you have to disambiguate using `plato.ui-port`
-- This port is then used to search your NGINX config (if provided) for the
-    external url of the service.
+- If you have a caddy-docker-proxy configuration for that service its url will
+    be used instead
 - Plato uses the container name to search the selfh.st icon list. To override this, use `plato.selfhst-icon`.
 
 Full list of labels is as follow:
@@ -108,7 +108,6 @@ services:
     container_name: plato
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/nginx:/etc/nginx:ro # optional if you want auto external URL
       # - /path/to/icons/custom:/www/assets/custom if you want to add or override icons to selfhst list
     environment:
       HOSTNAME: "kiwi"

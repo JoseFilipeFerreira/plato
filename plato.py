@@ -1,20 +1,14 @@
 import json
 import logging
 import os
-import re
-import threading
-import time
 from pathlib import Path
 from typing import Dict, Tuple, List, Generator, Set
 from urllib.parse import urljoin
 
-import crossplane
 import docker
 from docker.errors import NotFound
 from docker.models.containers import Container
 import yaml
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 
 client = docker.from_env()
 
@@ -61,10 +55,6 @@ logger = logging.getLogger(__name__)
 ASSETS_PATH   = Path("/www/assets")
 SELFHST_ICONS = ASSETS_PATH / Path("selfhst-icons/png")
 CUSTOM_ICONS  = ASSETS_PATH / Path("custom")
-
-NGINX_CONFIG_FOLDER = Path("/etc/nginx")
-NGINX_CONFIG_PATH = NGINX_CONFIG_FOLDER / "nginx.conf"
-SITES_ENABLED_DIR = NGINX_CONFIG_FOLDER / "sites-enabled"
 
 HOSTNAME = os.getenv("HOSTNAME")
 
@@ -174,120 +164,6 @@ def safe_list_containers(all=True) -> Generator[Container, None, None]:
             continue
 
 # ===================================================
-#                  NGINX PARSING
-# ===================================================
-
-_nginx_config = {}
-_lock = threading.Lock()
-_nginx_cooldown = 5
-_latest_nginx_reload = 0
-
-def get_nginx_port_url_map(nginx_conf=NGINX_CONFIG_PATH) -> Dict[int, List[str]]:
-    logger.info("Parsing Nginx Config")
-
-    valid_hostname = re.compile(r'^[a-zA-Z0-9.-]+$')
-
-    parsed = crossplane.parse(nginx_conf)
-    port_url_map: Dict[int, Set[str]] = {}
-
-    for config in parsed.get("config", []):
-        for directive in config.get("parsed", []):
-            if directive.get("directive") == "server":
-                server_block = directive
-                server_names = []
-                scheme = "http"
-
-                for directive in server_block.get("block", []):
-                    if directive["directive"] == "listen":
-                        args = directive.get("args", [])
-                        if any("443" in arg or arg == "ssl" for arg in args):
-                            scheme = "https"
-
-                    elif directive["directive"] == "server_name":
-                        for name in directive.get("args", []):
-                            name = name.strip()
-                            if name != "_" and valid_hostname.match(name):
-                                server_names.append(name)
-
-                if not server_names:
-                    continue  # skip blocks without valid hostnames
-
-                # Only process location blocks
-                for directive in server_block.get("block", []):
-                    if directive.get("directive") == "location":
-                        location_path = directive.get("args", ["/"])[0]
-                        for subdir in directive.get("block", []):
-                            if subdir.get("directive") == "proxy_pass":
-                                proxy_target = subdir.get("args", [None])[0]
-                                if proxy_target:
-                                    match = re.search(r":(\d+)", proxy_target)
-                                    if match:
-                                        internal_port = match.group(1)
-                                        for name in server_names:
-                                            url = f"{scheme}://{name}{location_path.rstrip('/')}"
-                                            url = url.rstrip("=")
-                                            if url == f"{scheme}://{name}":
-                                                url = url.rstrip("/")
-                                            port_url_map.setdefault(int(internal_port), set()).add(url)
-
-    # Convert sets to sorted lists
-    ret = {port: sorted(urls) for port, urls in port_url_map.items()}
-
-    if ret:
-        log_url_pairs = ''
-        for port in ret:
-            log_url_pairs += f"  {port} -> {ret[port]}\n"
-        logger.debug(log_url_pairs)
-    else:
-        logger.warning("Nginx config not found")
-
-    return ret
-
-
-def _reload_nginx_config():
-    global _nginx_config, _latest_nginx_reload
-    now = time.time()
-    with _lock:
-        _latest_nginx_reload = now
-    try:
-        new_config = get_nginx_port_url_map()
-        with _lock:
-            _nginx_config = new_config
-    except Exception as e:
-        logger.error(f"Failed to reload nginx config: {e}")
-
-def get_nginx_config() -> Dict[int, List[str]]:
-    with _lock:
-        return _nginx_config
-
-
-class NginxConfigWatcher(FileSystemEventHandler):
-    def on_any_event(self, event):
-        if event.is_directory:
-            return
-        path = Path(event.src_path)
-        if path == NGINX_CONFIG_PATH or path.parent == SITES_ENABLED_DIR:
-            now = time.time()
-            if now - _latest_nginx_reload > _nginx_cooldown:
-                logger.info(f"Detected change in Nginx config: {path}")
-                _reload_nginx_config()
-
-def start_nginx_watcher():
-
-    _reload_nginx_config()
-
-    event_handler = NginxConfigWatcher()
-    observer = Observer()
-    if NGINX_CONFIG_PATH.parent.exists():
-        observer.schedule(event_handler, str(NGINX_CONFIG_PATH.parent), recursive=False)
-    if SITES_ENABLED_DIR.exists():
-        observer.schedule(event_handler, str(SITES_ENABLED_DIR), recursive=True)
-
-    observer.daemon = True
-    observer.start()
-    return observer
-
-# ===================================================
 #                  URL Finder
 # ===================================================
 
@@ -305,27 +181,27 @@ COMMON_HTTPS_PORTS = {
 }
 
 KNOWN_PORTS = {
-    "jellyfin": 8096,
-    "qbittorrent": 8080,
+    "jellyfin"      : 8096,
+    "qbittorrent"   : 8080,
     "home-assistant": 8123,
-    "esphome": 6052
+    "esphome"       : 6052
 }
 
 def get_local_url(container, name:str ) -> Tuple[str, int]:
 
     # Find used TCP ports
-    unique_ports = set()
+    ports = set()
     for port_proto, host_mappings in container.attrs['NetworkSettings']['Ports'].items():
         internal_port, proto = port_proto.split('/')
         if proto == "tcp" and host_mappings:
             for mapping in host_mappings:
-                unique_ports.add((int(internal_port), int(mapping['HostPort'])))
+                ports.add((int(internal_port), int(mapping['HostPort'])))
 
-    logger.debug(f"Ports found: {unique_ports}")
+    logger.debug(f"Ports found: {ports}")
 
-    if len(unique_ports) == 1:
-        # Use the only exposed port as UI port
-        internal_port, external_port = next(iter(unique_ports))
+    # If only one port use it as UI port
+    if len(ports) == 1:
+        internal_port, external_port = next(iter(ports))
 
         protocol = "http"
         if internal_port in COMMON_HTTPS_PORTS:
@@ -333,10 +209,9 @@ def get_local_url(container, name:str ) -> Tuple[str, int]:
 
         return f"{protocol}://{HOSTNAME}:{external_port}", external_port
 
-    elif len(unique_ports) > 1:
-        # Check if any of the found ports are common HTTP/HTTPS port
-        for internal_port, external_port in unique_ports:
-
+    # If more than one port find if any is a common HTTP/HTTPS port
+    elif len(ports) > 1:
+        for internal_port, external_port in ports:
 
             protocol = None
 
@@ -373,8 +248,6 @@ def get_local_url(container, name:str ) -> Tuple[str, int]:
 def generate_homer_config():
     logger.info("🔧 Generating Homer dashboard configuration...")
 
-    nginx_url_pairs = get_nginx_config()
-
     categories = {}
 
     for container in safe_list_containers():
@@ -392,7 +265,6 @@ def generate_homer_config():
 
         container_name = container.name.lower()
 
-
         name        = labels.get("plato.name", container_name.title())
         url         = labels.get("plato.url")
         endpoint    = labels.get("plato.endpoint")
@@ -400,28 +272,21 @@ def generate_homer_config():
 
         force_https = labels.get("plato.force-https", "false").lower() in ("1", "true", "yes")
 
+        caddy       = labels.get("caddy")
         logger.debug(f"> Processing container {name}")
 
-        # caddy-docker-proxy support
-        caddy_url = labels.get("caddy")
-        if caddy_url:
-            logger.debug(f"Caddy found: {caddy_url}")
-            url = "https://" + caddy_url
-
         if not url:
-            if ui_port:
+            # caddy-docker-proxy url
+            if caddy:
+                logger.debug(f"Caddy url found: {caddy}")
+                url = "https://" + caddy
+            elif ui_port:
                 url = f"http://{HOSTNAME}:{ui_port}"
             else:
                 url, ui_port = get_local_url(container, name)
 
             if endpoint:
                 url = urljoin(url.rstrip('/') + '/', endpoint)
-
-            if nginx_url_pairs:
-                external_urls = nginx_url_pairs.get(ui_port)
-                if external_urls:
-                    url = external_urls[0]
-                    logger.debug(f"Found external url: {url}")
 
         if url and force_https:
             if "https" not in url:
@@ -443,7 +308,7 @@ def generate_homer_config():
             for k, v in {
                 "name"       : name,
                 "url"        : url,
-                "position" : position,
+                "position"   : position,
                 "subtitle"   : labels.get("plato.subtitle"),
                 "tag"        : labels.get("plato.tag"),
                 "tagstyle"   : labels.get("plato.tagstyle"),
@@ -538,8 +403,6 @@ if __name__ == "__main__":
         logger.warning("CATEGORY_ICONS not provided. Column order will be random")
 
     write_manifest()
-
-    start_nginx_watcher()
 
     generate_homer_config()
 
